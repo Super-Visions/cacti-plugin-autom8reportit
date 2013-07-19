@@ -15,6 +15,11 @@
  +-------------------------------------------------------------------------+
  */
 
+define("AUTOM8_ACTION_REPORT_DUPLICATE", 1);
+define("AUTOM8_ACTION_REPORT_ENABLE", 2);
+define("AUTOM8_ACTION_REPORT_DISABLE", 3);
+define("AUTOM8_ACTION_REPORT_DELETE", 99);
+
 # non-gw-cacti compatibility
 global $database_idquote;
 if(empty($database_idquote)) $database_idquote = '`';
@@ -36,6 +41,21 @@ function plugin_autom8reportit_install() {
 	
 	# register all php modules required for this plugin
 	api_plugin_register_realm('autom8reportit', 'autom8_report_rules.php', 'Plugin Automate -> Maintain Report Rules', true);
+	
+	# add plugin_autom8_report_rules table
+	$data = array();
+	$data['columns'][] = array('name' => 'id', 				'type' => 'mediumint(8)', 'unsigned' => 'unsigned', 'NULL' => false, 'auto_increment' => true);
+	$data['columns'][] = array('name' => 'name',	 		'type' => 'varchar(255)', 'NULL' => false, 'default' => '');
+	$data['columns'][] = array('name' => 'report_id',		'type' => 'int(11)', 'unsigned' => 'unsigned', 'NULL' => false, 'default' => 0);
+	$data['columns'][] = array('name' => 'snmp_query_id', 	'type' => 'mediumint(8)', 'unsigned' => 'unsigned', 'NULL' => true, 'default' => 0);
+	$data['columns'][] = array('name' => 'enabled', 		'type' => 'char(2)', 'NULL' => true,  'default' => '');
+	$data['primary'] = 'id';
+	$data['keys'][] = array('name'=> 'report_id', 'columns' => 'report_id');
+	$data['keys'][] = array('name'=> 'snmp_query_id', 'columns' => 'snmp_query_id');
+	$data['type'] = 'MyISAM';
+	$data['comment'] = 'Autom8 Report Rules';
+	api_plugin_db_table_create ('autom8', 'plugin_autom8_report_rules', $data);
+	
 
 }
 
@@ -76,10 +96,10 @@ function autom8reportit_version() {
  */
 function autom8reportit_draw_navigation_text($nav) {
 	// Displayed navigation text under the blue tabs of Cacti
-	$nav["autom8_report_rules.php:"] 			= array("title" => "Graph Rules", "mapping" => "index.php:", "url" => "autom8_report_rules.php", "level" => "1");
+	$nav["autom8_report_rules.php:"] 			= array("title" => "Report Rules", "mapping" => "index.php:", "url" => "autom8_report_rules.php", "level" => "1");
 	$nav["autom8_report_rules.php:edit"] 		= array("title" => "(Edit)", "mapping" => "index.php:,autom8_report_rules.php:", "url" => "", "level" => "2");
 	$nav["autom8_report_rules.php:actions"] 	= array("title" => "Actions", "mapping" => "index.php:,autom8_report_rules.php:", "url" => "", "level" => "2");
-	$nav["autom8_report_rules.php:item_edit"]	= array("title" => "Graph Rule Items", "mapping" => "index.php:,autom8_report_rules.php:,autom8_report_rules.php:edit", "url" => "", "level" => "3");
+	$nav["autom8_report_rules.php:item_edit"]	= array("title" => "Report Rule Items", "mapping" => "index.php:,autom8_report_rules.php:,autom8_report_rules.php:edit", "url" => "", "level" => "3");
 	
     return $nav;
 }
