@@ -21,7 +21,7 @@ include_once('./lib/data_query.php');
 
 define('MAX_DISPLAY_PAGES', 21);
 
-$script_url = $config['url_path'].'plugins/acceptance/acceptance_report.php';
+$script_url = $config['url_path'].'plugins/autom8reportit/autom8_report_rules.php';
 
 $report_rule_actions = array(
 AUTOM8_ACTION_REPORT_DUPLICATE => 'Duplicate',
@@ -34,6 +34,13 @@ AUTOM8_ACTION_REPORT_DELETE => 'Delete',
 if (!isset($_REQUEST['action'])) { $_REQUEST['action'] = ''; }
 
 switch ($_REQUEST['action']) {
+	case 'edit':
+		include_once($config['include_path'] . "/top_header.php");
+
+		autom8_report_rules_edit();
+
+		include_once($config['include_path'] . "/bottom_footer.php");
+		break;
 	default:
 		include_once($config['include_path'] . "/top_header.php");
 
@@ -41,6 +48,153 @@ switch ($_REQUEST['action']) {
 
 		include_once($config['include_path'] . "/bottom_footer.php");
 		break;
+}
+
+
+function autom8_report_rules_edit() {
+	global $colors, $config;
+	global $fields_autom8_report_rules_create, $fields_autom8_report_rules_edit;
+	include_once($config['base_path'].'/plugins/autom8reportit/autom8_utilities.php');
+
+	/* ================= input validation ================= */
+	input_validate_input_number(get_request_var_request('id'));
+	input_validate_input_number(get_request_var_request('page'));
+	/* ==================================================== */
+	#print '<pre>'; print_r($_POST); print_r($_GET); print_r($_REQUEST); print '</pre>';
+
+	/* remember these search fields in session vars so we don't have to keep passing them around */
+	load_current_session_value('page', 'autom8_report_rule_current_page', 1);
+	load_current_session_value('report_rule_rows', 'autom8_report_rule_rows', read_config_option('num_rows_data_source'));
+	load_current_session_value('show_hosts', 'autom8_report_rules_show_hosts', false);
+	load_current_session_value('show_ds', 'autom8_report_rules_show_ds', false);
+	
+	
+	$rule_id = (int) get_request_var_request('id', 0);
+	$page = (int) get_request_var_request('page');
+	$show_hosts = (bool) get_request_var_request('show_hosts');
+	$show_ds = (bool) get_request_var_request('show_ds');
+	$rule_name = sanitize_search_string(get_request_var('name'));
+	$report_id = (int) get_request_var_request('report_id', 0);
+
+	/*
+	 * display the rule -------------------------------------------------------------------------------------
+	 */
+	$rule = array();
+	if (!empty($rule_id)) {
+		$rule_sql = sprintf('SELECT * FROM plugin_autom8_report_rules where id=%d;',$rule_id);
+		$rule = db_fetch_row($rule_sql);
+		if (!empty($report_id)) {
+			$rule['report_id'] = $report_id; # set report_id for display
+		}
+		# setup header
+		$header_label = '[edit: ' . $rule['name'] . ']';
+	}else{
+		$header_label = '[new]';
+	}
+
+
+	/*
+	 * show hosts? ------------------------------------------------------------------------------------------
+	 */
+	if (!empty($rule_id)) {
+		echo '
+<table width="100%" align="center">
+	<tr>
+		<td class="textInfo" align="right" valign="top"><span style="color: #c16921;">*
+			<a href="'.htmlspecialchars('autom8_report_rules.php?action=edit&id=' . $rule_id . '&show_hosts=' . (int) !$show_hosts ) . '">
+				<b>'. ($show_hosts ? "Don't Show" : 'Show') . '</b> Matching Hosts.
+			</a></span>
+		</td>
+	</tr>';
+		
+	}
+
+	/*
+	 * show graphs? -----------------------------------------------------------------------------------------
+	 */
+	if (!empty($rule['report_id']) && $rule['report_id'] > 0) {
+		echo '
+	<tr>
+		<td class="textInfo" align="right" valign="top"><span style="color: #c16921;">*
+			<a href="'.htmlspecialchars('autom8_report_rules.php?action=edit&id=' . $rule_id . '&show_ds=' . (int) !$show_ds ).'">
+				<b>'.($show_ds ? "Don't Show" : 'Show'). '</b> Matching Data Sources.
+			</a></span>
+		</td>
+	</tr>
+</table>
+<br>
+		';
+	}
+
+	print '<form method="post" action="autom8_report_rules.php" name="form_autom8_rule_edit">';
+	html_start_box('<strong>Rule Selection</strong> ' . $header_label, '100%', $colors['header'], 3, 'center', '');
+	#print '<pre>'; print_r($_POST); print_r($_GET); print_r($_REQUEST); print '</pre>';
+
+	if (!empty($rule_id)) {
+		/* display whole rule */
+		$form_array = $fields_autom8_report_rules_create + $fields_autom8_report_rules_edit;
+	} else {
+		/* display first part of rule only and request user to proceed */
+		$form_array = $fields_autom8_report_rules_create;
+	}
+
+	draw_edit_form(array(
+		'config' => array('no_form_tag' => true),
+		'fields' => inject_form_variables($form_array, $rule),
+	));
+
+	html_end_box();
+	form_hidden_box('id', $rule_id, '');
+//	form_hidden_box('item_id', (isset($rule['item_id']) ? $rule['item_id'] : '0'), '');
+	form_hidden_box('save_component_autom8_report_rule', 1, '');
+
+	/*
+	 * display the rule items -------------------------------------------------------------------------------
+	 */
+	if (!empty($rule['id'])) {
+		# display graph rules for host match
+		display_match_rule_items('Rule Items => Eligible Hosts',
+			$rule['id'],
+			AUTOM8_RULE_TYPE_REPORT_MATCH,
+			basename($_SERVER['PHP_SELF']));
+
+		# fetch graph action rules
+		display_ds_rule_items('Rule Items => Add Data Sources',
+			$rule['id'],
+			AUTOM8_RULE_TYPE_REPORT_ACTION,
+			basename($_SERVER['PHP_SELF']));
+	}
+
+	form_save_button('autom8_report_rules.php');
+	print '<br>';
+
+	if (!empty($rule['id'])) {
+		/* display list of matching hosts */
+		if ($show_hosts) display_matching_hosts($rule, AUTOM8_RULE_TYPE_REPORT_MATCH, basename($_SERVER['PHP_SELF']) . '?action=edit&id=' . $rule_id);
+		
+		/* display list of new graphs */
+		//if ($show_ds) display_ds_list($rule);
+	}
+
+	?>
+<script type="text/javascript">
+	<!--
+	function applyReportIdChange(objForm) {
+		strURL = '?action=edit&id=' + objForm.id.value;
+		strURL = strURL + '&report_id=' + objForm.report_id.value;
+		//alert('Url: ' + strURL);
+		document.location = strURL;
+	}
+	function applySNMPQueryIdChange(objForm) {
+		strURL = '?action=edit&id=' + objForm.id.value;
+		strURL = strURL + '&report_id=' + objForm.report_id.value;
+		strURL = strURL + '&snmp_query_id=' + objForm.snmp_query_id.value;
+		//alert('Url: ' + strURL);
+		document.location = strURL;
+	}
+	-->
+</script>
+	<?php
 }
 
 function autom8_report_rules() {
@@ -91,7 +245,7 @@ function autom8_report_rules() {
 	// filter settings
 	$filter = sanitize_search_string(get_request_var_request('filter'));
 	$preg_pattern = '#' . str_replace(array('%','_'), array('.*','.'), preg_quote($filter)) . '#i';
-	$preg_replace = '<span style="background-color: #F8D93D;">\\1</span>';
+	$preg_replace = '<span style="background-color: #F8D93D;">$0</span>';
 	
 	$rule_status = (int) get_request_var_request('rule_status');
 	$snmp_query_id = (int) get_request_var_request('snmp_query_id');
@@ -218,7 +372,7 @@ LIMIT %d OFFSET %d;',
 	
 	
 	/* generate page list */
-	$url_page_select = get_page_list($page, ACCEPTANCE_MAX_DISPLAY_PAGES, $per_page, $total_rows, $script_url.'?');
+	$url_page_select = get_page_list($page, MAX_DISPLAY_PAGES, $per_page, $total_rows, $script_url.'?');
 
 	$nav = '<tr bgcolor="#' . $colors["header"] . '">
 		<td colspan="11">
@@ -264,7 +418,7 @@ LIMIT %d OFFSET %d;',
 			
 			// rule name
 			$report_rule_name = title_trim($report_rule['name'], read_config_option('max_title_graph'));
-			$report_rule_title = '<a class="linkEditMain" href="' . htmlspecialchars($script_url.'?action=edit&id=' . $report_rule['id'] . '&page=1" title="' . $report_rule['name']) . '">' . 
+			$report_rule_title = '<a class="linkEditMain" href="' . htmlspecialchars($script_url.'?action=edit&id=' . $report_rule['id'] . '&page=1') . '" title="' . $report_rule['name'] . '">' . 
 					(!empty($filter) ? preg_replace($preg_pattern, $preg_replace, $report_rule_name) : $report_rule_name) . 
 					'</a>';
 			form_selectable_cell($report_rule_title, $report_rule['id']);

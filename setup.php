@@ -15,6 +15,9 @@
  +-------------------------------------------------------------------------+
  */
 
+define("AUTOM8_RULE_TYPE_REPORT_MATCH", 5);
+define("AUTOM8_RULE_TYPE_REPORT_ACTION", 6);
+
 define("AUTOM8_ACTION_REPORT_DUPLICATE", 1);
 define("AUTOM8_ACTION_REPORT_ENABLE", 2);
 define("AUTOM8_ACTION_REPORT_DISABLE", 3);
@@ -36,6 +39,7 @@ function plugin_autom8reportit_install() {
 	api_plugin_register_hook('autom8reportit', 'config_arrays', 'autom8reportit_config_arrays', 'setup.php');
 	# setup all forms needed
 	api_plugin_register_hook('autom8reportit', 'config_settings', 'autom8reportit_config_settings', 'setup.php');
+	api_plugin_register_hook('autom8reportit', 'config_form', 'autom8reportit_config_form', 'setup.php');
 	# graph provide navigation texts
 	api_plugin_register_hook('autom8reportit', 'draw_navigation_text', 'autom8reportit_draw_navigation_text', 'setup.php');
 	
@@ -113,6 +117,44 @@ function autom8reportit_config_arrays() {
 	global $menu;
 	$menu["Templates"]['plugins/autom8reportit/autom8_report_rules.php'] = "Report Rules";
 
+}
+
+/**
+ * autom8reportit_config_form	- Setup forms needed for this plugin
+ */
+function autom8reportit_config_form () {
+	
+	global $fields_autom8_report_rules_create, $fields_autom8_report_rules_edit;
+	
+	$fields_autom8_report_rules_create = array(
+		"name" => array(
+			"method" => "textbox",
+			"friendly_name" => "Name",
+			"description" => "A useful name for this Rule.",
+			"value" => "|arg1:name|",
+			"max_length" => "255",
+			"size" => "60"
+		),
+		"report_id" => array(
+			"method" => "drop_sql",
+			"friendly_name" => "REQUIRED: Report",
+			"description" => "Choose a Report to apply to this rule.",
+			"value" => "|arg1:report_id|",
+			"on_change" => "applyReportIdChange(document.form_autom8_rule_edit)",
+			"sql" => "SELECT id, description AS name FROM reportit_reports ORDER BY description;"
+		),
+	);
+
+	$fields_autom8_report_rules_edit = array(
+		"enabled" => array(
+			"method" => "checkbox",
+			"friendly_name" => "Enable Rule",
+			"description" => "Check this box to enable this rule.",
+			"value" => "|arg1:enabled|",
+			"default" => "",
+			"form_id" => false
+		),
+	);
 }
 
 /**
