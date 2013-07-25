@@ -148,9 +148,10 @@ function autom8reportit_config_form () {
 	$fields_autom8_report_rules_edit = array(
 		"snmp_query_id" => array(
 			"method" => "drop_sql",
-			"friendly_name" => "REQUIRED: Data Query",
+			"friendly_name" => "Data Query",
 			"description" => "Choose a Data Query to apply to this rule.",
 			"value" => "|arg1:snmp_query_id|",
+			"none_value" => "None",
 			"on_change" => "applySNMPQueryIdChange(document.form_autom8_rule_edit)",
 			"sql" => "SELECT 
 	sq.id, 

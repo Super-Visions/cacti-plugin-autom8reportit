@@ -34,6 +34,10 @@ AUTOM8_ACTION_REPORT_DELETE => 'Delete',
 if (!isset($_REQUEST['action'])) { $_REQUEST['action'] = ''; }
 
 switch ($_REQUEST['action']) {
+	case 'save':
+		autom8_report_rules_form_save();
+
+		break;
 	case 'item_movedown':
 		autom8_report_rules_item_movedown();
 
@@ -49,6 +53,11 @@ switch ($_REQUEST['action']) {
 
 		header('Location: ' . $script_url . '?action=edit&id=' . (int) get_request_var_request('id', 0));
 		break;
+ 	case 'remove':
+		autom8_report_rules_remove();
+
+		header('Location: '.$script_url);
+		break;
 	case 'edit':
 		include_once($config['include_path'] . '/top_header.php');
 
@@ -63,6 +72,39 @@ switch ($_REQUEST['action']) {
 
 		include_once($config['include_path'] . '/bottom_footer.php');
 		break;
+}
+
+/* --------------------------
+ The Save Function
+ -------------------------- */
+
+function autom8_report_rules_form_save() {
+	global $script_url;
+
+	if(get_request_var_post('save_component_autom8_report_rule', 0)){
+
+		$rule_id = (int) get_request_var_post('id', 0);
+
+		$save['id'] = $rule_id;
+		$save['name'] = form_input_validate(get_request_var_post('name'), 'name', '', false, 3);
+		$save['report_id'] = form_input_validate(get_request_var_post('report_id'), 'snmp_query_id', '^[0-9]+$', false, 3);
+		$save['snmp_query_id'] = form_input_validate( (int) get_request_var_post('snmp_query_id', 0), 'snmp_query_id', '^[0-9]+$', false, 3);
+		$save['enabled'] = get_request_var_post('enabled') ? 'on' : '';
+		if (!is_error_message()) {
+			$rule_id = sql_save($save, 'plugin_autom8_report_rules');
+
+			if ($rule_id) {
+				raise_message(1);
+			}else{
+				raise_message(2);
+			}
+		}
+
+		header('Location: ' . $script_url . '?action=edit&id=' . $rule_id);
+	}else{
+		raise_message(2);
+		header('Location: autom8_report_rules.php');
+	}
 }
 
 /* --------------------------
@@ -113,6 +155,25 @@ function autom8_report_rules_item_remove() {
  Rule Functions
  --------------------- */
 
+function autom8_report_rules_remove() {
+	global $script_url;
+	
+	$rule_id = (int) get_request_var_request('id', 0);
+
+	if(read_config_option('deletion_verification') == 'on' && !isset($_GET['confirm']) ){
+		include('./include/top_header.php');
+		form_confirm('Are You Sure?', 'Are you sure you want to delete the Rule <strong>"' . db_fetch_cell(sprintf('SELECT name FROM plugin_autom8_report_rules WHERE id = %d;', $rule_id)) . '"</strong>?', 'plugins/autom8reportit/autom8_report_rules.php', 'plugins/autom8reportit/autom8_report_rules.php?action=remove&id=' . $rule_id );
+		include('./include/bottom_footer.php');
+		exit;
+	}
+
+	if(read_config_option('deletion_verification') != 'on' || isset($_GET['confirm']) ){
+		db_execute(sprintf('DELETE FROM plugin_autom8_match_rule_items WHERE rule_id = %d AND rule_type = %d;', $rule_id, AUTOM8_RULE_TYPE_REPORT_MATCH));
+		db_execute(sprintf('DELETE FROM plugin_autom8_graph_rule_items WHERE rule_id = %d;', $rule_id));
+		db_execute(sprintf('DELETE FROM plugin_autom8_report_rules WHERE id = %d;', $rule_id));
+	}
+}
+
 function autom8_report_rules_edit() {
 	global $colors, $config, $script_url;
 	global $fields_autom8_report_rules_create, $fields_autom8_report_rules_edit;
@@ -135,8 +196,6 @@ function autom8_report_rules_edit() {
 	$page = (int) get_request_var_request('page');
 	$show_hosts = (bool) get_request_var_request('show_hosts');
 	$show_ds = (bool) get_request_var_request('show_ds');
-	$rule_name = sanitize_search_string(get_request_var('name'));
-	$report_id = (int) get_request_var_request('report_id', 0);
 
 	/*
 	 * display the rule -------------------------------------------------------------------------------------
@@ -145,16 +204,17 @@ function autom8_report_rules_edit() {
 	if (!empty($rule_id)) {
 		$rule_sql = sprintf('SELECT * FROM plugin_autom8_report_rules where id=%d;',$rule_id);
 		$rule = db_fetch_row($rule_sql);
-		if (!empty($report_id)) {
-			$rule['report_id'] = $report_id; # set report_id for display
-		}
 		# setup header
 		$header_label = '[edit: ' . $rule['name'] . ']';
 	}else{
 		$header_label = '[new]';
 	}
-
-
+	
+	# set fields for display
+	if(get_request_var('name')) $rule['name'] = sanitize_search_string(get_request_var('name'));
+	if(get_request_var_request('report_id', 0)) $rule['report_id'] = (int) get_request_var_request('report_id');
+	if(get_request_var_request('snmp_query_id') != '') $rule['snmp_query_id'] = (int) get_request_var_request('snmp_query_id');
+	
 	/*
 	 * show hosts? ------------------------------------------------------------------------------------------
 	 */
@@ -243,12 +303,14 @@ function autom8_report_rules_edit() {
 	<!--
 	function applyReportIdChange(objForm) {
 		strURL = '?action=edit&id=' + objForm.id.value;
+		strURL = strURL + '&name=' + objForm.name.value;
 		strURL = strURL + '&report_id=' + objForm.report_id.value;
 		//alert('Url: ' + strURL);
 		document.location = strURL;
 	}
 	function applySNMPQueryIdChange(objForm) {
 		strURL = '?action=edit&id=' + objForm.id.value;
+		strURL = strURL + '&name=' + objForm.name.value;
 		strURL = strURL + '&report_id=' + objForm.report_id.value;
 		strURL = strURL + '&snmp_query_id=' + objForm.snmp_query_id.value;
 		//alert('Url: ' + strURL);
