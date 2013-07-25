@@ -34,6 +34,21 @@ AUTOM8_ACTION_REPORT_DELETE => 'Delete',
 if (!isset($_REQUEST['action'])) { $_REQUEST['action'] = ''; }
 
 switch ($_REQUEST['action']) {
+	case 'item_movedown':
+		autom8_report_rules_item_movedown();
+
+		header('Location: ' . $script_url . '?action=edit&id=' . (int) get_request_var_request('id', 0));
+		break;
+	case 'item_moveup':
+		autom8_report_rules_item_moveup();
+
+		header('Location: ' . $script_url . '?action=edit&id=' . (int) get_request_var_request('id', 0));
+		break;
+	case 'item_remove':
+		autom8_report_rules_item_remove();
+
+		header('Location: ' . $script_url . '?action=edit&id=' . (int) get_request_var_request('id', 0));
+		break;
 	case 'edit':
 		include_once($config['include_path'] . '/top_header.php');
 
@@ -50,6 +65,53 @@ switch ($_REQUEST['action']) {
 		break;
 }
 
+/* --------------------------
+ Rule Item Functions
+ -------------------------- */
+
+function autom8_report_rules_item_movedown() {
+	
+	$item_id = (int) get_request_var_request('item_id', 0);
+	$rule_type = (int) get_request_var_request('rule_type', 0);
+	$rule_id = (int) get_request_var_request('id', 0);
+
+	if ( $rule_type == AUTOM8_RULE_TYPE_REPORT_MATCH) {
+		move_item_down('plugin_autom8_match_rule_items', $item_id, 'rule_id=' . $rule_id . ' AND rule_type=' . $rule_type);
+	} elseif ($rule_type == AUTOM8_RULE_TYPE_REPORT_ACTION) {
+		move_item_down('plugin_autom8_report_rule_items', $item_id, 'rule_id=' . $rule_id);
+	}
+}
+
+function autom8_report_rules_item_moveup() {
+	
+	$item_id = (int) get_request_var_request('item_id', 0);
+	$rule_type = (int) get_request_var_request('rule_type', 0);
+	$rule_id = (int) get_request_var_request('id', 0);
+
+
+	if ( $rule_type == AUTOM8_RULE_TYPE_REPORT_MATCH) {
+		move_item_up('plugin_autom8_match_rule_items', $item_id, 'rule_id=' . $rule_id . ' AND rule_type=' . $rule_type);
+	} elseif ($rule_type == AUTOM8_RULE_TYPE_REPORT_ACTION) {
+		move_item_up('plugin_autom8_report_rule_items', $item_id, 'rule_id=' . $rule_id);
+	}
+}
+
+function autom8_report_rules_item_remove() {
+	
+	$item_id = (int) get_request_var_request('item_id', 0);
+	$rule_type = (int) get_request_var_request('rule_type', 0);
+
+	if ( $rule_type == AUTOM8_RULE_TYPE_REPORT_MATCH) {
+		db_execute(sprintf('DELETE FROM plugin_autom8_match_rule_items WHERE id = %d LIMIT 1;', $item_id));
+	} elseif ($rule_type == AUTOM8_RULE_TYPE_REPORT_ACTION) {
+		db_execute(sprintf('DELETE FROM plugin_autom8_report_rule_items WHERE id= %d LIMIT 1;', $item_id));
+	}
+
+}
+
+/* ---------------------
+ Rule Functions
+ --------------------- */
 
 function autom8_report_rules_edit() {
 	global $colors, $config, $script_url;
