@@ -52,7 +52,7 @@ switch ($_REQUEST['action']) {
 
 
 function autom8_report_rules_edit() {
-	global $colors, $config;
+	global $colors, $config, $script_url;
 	global $fields_autom8_report_rules_create, $fields_autom8_report_rules_edit;
 	include_once($config['base_path'].'/plugins/autom8reportit/autom8_utilities.php');
 
@@ -101,7 +101,7 @@ function autom8_report_rules_edit() {
 <table width="100%" align="center">
 	<tr>
 		<td class="textInfo" align="right" valign="top"><span style="color: #c16921;">*
-			<a href="'.htmlspecialchars('autom8_report_rules.php?action=edit&id=' . $rule_id . '&show_hosts=' . (int) !$show_hosts ) . '">
+			<a href="'.htmlspecialchars($script_url.'?action=edit&id=' . $rule_id . '&show_hosts=' . (int) !$show_hosts ) . '">
 				<b>'. ($show_hosts ? "Don't Show" : 'Show') . '</b> Matching Hosts.
 			</a></span>
 		</td>
@@ -116,7 +116,7 @@ function autom8_report_rules_edit() {
 		echo '
 	<tr>
 		<td class="textInfo" align="right" valign="top"><span style="color: #c16921;">*
-			<a href="'.htmlspecialchars('autom8_report_rules.php?action=edit&id=' . $rule_id . '&show_ds=' . (int) !$show_ds ).'">
+			<a href="'.htmlspecialchars($script_url.'?action=edit&id=' . $rule_id . '&show_ds=' . (int) !$show_ds ).'">
 				<b>'.($show_ds ? "Don't Show" : 'Show'). '</b> Matching Data Sources.
 			</a></span>
 		</td>
@@ -126,7 +126,7 @@ function autom8_report_rules_edit() {
 		';
 	}
 
-	print '<form method="post" action="autom8_report_rules.php" name="form_autom8_rule_edit">';
+	print '<form method="post" action="' . $script_url . '" name="form_autom8_rule_edit">';
 	html_start_box('<strong>Rule Selection</strong> ' . $header_label, '100%', $colors['header'], 3, 'center', '');
 	#print '<pre>'; print_r($_POST); print_r($_GET); print_r($_REQUEST); print '</pre>';
 
@@ -156,21 +156,21 @@ function autom8_report_rules_edit() {
 		display_match_rule_items('Rule Items => Eligible Hosts',
 			$rule['id'],
 			AUTOM8_RULE_TYPE_REPORT_MATCH,
-			basename($_SERVER['PHP_SELF']));
+			$script_url);
 
 		# fetch graph action rules
 		display_ds_rule_items('Rule Items => Add Data Sources',
 			$rule['id'],
 			AUTOM8_RULE_TYPE_REPORT_ACTION,
-			basename($_SERVER['PHP_SELF']));
+			$script_url);
 	}
 
-	form_save_button('autom8_report_rules.php');
+	form_save_button($script_url);
 	print '<br>';
 
 	if (!empty($rule['id'])) {
 		/* display list of matching hosts */
-		if ($show_hosts) display_matching_hosts($rule, AUTOM8_RULE_TYPE_REPORT_MATCH, basename($_SERVER['PHP_SELF']) . '?action=edit&id=' . $rule_id);
+		if ($show_hosts) display_matching_hosts($rule, AUTOM8_RULE_TYPE_REPORT_MATCH, $script_url . '?action=edit&id=' . $rule_id);
 		
 		/* display list of new graphs */
 		//if ($show_ds) display_ds_list($rule);
@@ -302,9 +302,9 @@ LIMIT %d OFFSET %d;',
 	
 	# filter box
 
-	print ('<form name="form_autom8_report_rules" method="post" action="autom8_report_rules.php">');
+	print ('<form name="form_autom8_report_rules" method="post" action="'.$script_url.'">');
 
-	html_start_box('<strong>Report Rules</strong>', '100%', $colors['header'], '3', 'center', 'autom8_report_rules.php?action=edit');
+	html_start_box('<strong>Report Rules</strong>', '100%', $colors['header'], '3', 'center', $script_url.'?action=edit');
 
 	$filter_html = '<tr bgcolor="' . $colors['panel'] . '">
 					<td>
@@ -367,7 +367,7 @@ LIMIT %d OFFSET %d;',
 	print "</form>\n";
 
 	
-	print '<form name="chk" method="post" action="autom8_report_rules.php">';
+	print '<form name="chk" method="post" action="'.$script_url.'">';
 	html_start_box('', '100%', $colors['header'], '3', 'center', '');
 	
 	
@@ -448,7 +448,7 @@ LIMIT %d OFFSET %d;',
 	<!--
 
 	function applyViewRuleFilterChange(objForm) {
-		strURL = 'autom8_report_rules.php?rule_status=' + objForm.rule_status.value;
+		strURL = '?rule_status=' + objForm.rule_status.value;
 		strURL = strURL + '&rule_rows=' + objForm.rule_rows.value;
 		strURL = strURL + '&snmp_query_id=' + objForm.snmp_query_id.value;
 		strURL = strURL + '&filter=' + objForm.filter.value;
