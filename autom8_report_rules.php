@@ -35,18 +35,18 @@ if (!isset($_REQUEST['action'])) { $_REQUEST['action'] = ''; }
 
 switch ($_REQUEST['action']) {
 	case 'edit':
-		include_once($config['include_path'] . "/top_header.php");
+		include_once($config['include_path'] . '/top_header.php');
 
 		autom8_report_rules_edit();
 
-		include_once($config['include_path'] . "/bottom_footer.php");
+		include_once($config['include_path'] . '/bottom_footer.php');
 		break;
 	default:
-		include_once($config['include_path'] . "/top_header.php");
+		include_once($config['include_path'] . '/top_header.php');
 
 		autom8_report_rules();
 
-		include_once($config['include_path'] . "/bottom_footer.php");
+		include_once($config['include_path'] . '/bottom_footer.php');
 		break;
 }
 
@@ -107,12 +107,12 @@ function autom8_report_rules_edit() {
 		</td>
 	</tr>';
 		
-	}
+	} else $show_hosts = false;
 
 	/*
 	 * show graphs? -----------------------------------------------------------------------------------------
 	 */
-	if (!empty($rule['report_id']) && $rule['report_id'] > 0) {
+	if (!empty($rule['snmp_query_id']) && $rule['snmp_query_id'] > 0) {
 		echo '
 	<tr>
 		<td class="textInfo" align="right" valign="top"><span style="color: #c16921;">*
@@ -124,7 +124,7 @@ function autom8_report_rules_edit() {
 </table>
 <br>
 		';
-	}
+	} else $show_ds = false;
 
 	print '<form method="post" action="' . $script_url . '" name="form_autom8_rule_edit">';
 	html_start_box('<strong>Rule Selection</strong> ' . $header_label, '100%', $colors['header'], 3, 'center', '');

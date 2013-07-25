@@ -146,6 +146,29 @@ function autom8reportit_config_form () {
 	);
 
 	$fields_autom8_report_rules_edit = array(
+		"snmp_query_id" => array(
+			"method" => "drop_sql",
+			"friendly_name" => "REQUIRED: Data Query",
+			"description" => "Choose a Data Query to apply to this rule.",
+			"value" => "|arg1:snmp_query_id|",
+			"on_change" => "applySNMPQueryIdChange(document.form_autom8_rule_edit)",
+			"sql" => "SELECT 
+	sq.id, 
+	sq.name 
+FROM snmp_query sq 
+JOIN snmp_query_graph sqg 
+	ON (sqg.snmp_query_id = sq.id) 
+JOIN snmp_query_graph_rrd_sv sqgrs 
+	ON (sqgrs.snmp_query_graph_id = sqg.id ) 
+JOIN reportit_templates rt 
+	USING(data_template_id) 
+JOIN reportit_reports rr 
+	ON (rr.template_id = rt.id) 
+WHERE 
+	rr.id = |arg1:report_id| 
+GROUP BY sq.id, sq.name 
+ORDER BY sq.name;"
+		),
 		"enabled" => array(
 			"method" => "checkbox",
 			"friendly_name" => "Enable Rule",
