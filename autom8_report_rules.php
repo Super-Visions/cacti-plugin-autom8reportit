@@ -24,10 +24,10 @@ define('MAX_DISPLAY_PAGES', 21);
 $script_url = $config['url_path'].'plugins/autom8reportit/autom8_report_rules.php';
 
 $report_rule_actions = array(
-AUTOM8_ACTION_REPORT_DUPLICATE => 'Duplicate',
-AUTOM8_ACTION_REPORT_ENABLE => 'Enable',
-AUTOM8_ACTION_REPORT_DISABLE => 'Disable',
-AUTOM8_ACTION_REPORT_DELETE => 'Delete',
+	AUTOM8_ACTION_REPORT_DUPLICATE => 'Duplicate',
+	AUTOM8_ACTION_REPORT_ENABLE => 'Enable',
+	AUTOM8_ACTION_REPORT_DISABLE => 'Disable',
+	AUTOM8_ACTION_REPORT_DELETE => 'Delete',
 );
 
 /* set default action */
@@ -36,6 +36,10 @@ if (!isset($_REQUEST['action'])) { $_REQUEST['action'] = ''; }
 switch ($_REQUEST['action']) {
 	case 'save':
 		autom8_report_rules_form_save();
+
+		break;
+	case 'actions':
+		autom8_report_rules_form_actions();
 
 		break;
 	case 'item_movedown':
@@ -105,6 +109,125 @@ function autom8_report_rules_form_save() {
 		raise_message(2);
 		header('Location: autom8_report_rules.php');
 	}
+}
+
+/* ------------------------
+ The Actions function
+ ------------------------ */
+
+function autom8_report_rules_form_actions() {
+	global $report_rule_actions, $script_url;
+	global $config, $colors;
+	include_once($config['base_path'].'/plugins/autom8reportit/autom8_utilities.php');
+	
+	$action = get_request_var_post('drp_action', 0);
+	$selected_items = get_request_var_post('selected_items');
+
+	/* if we are to save this form, instead of display it */
+	if (preg_match('#^([0-9]+,)*[0-9]+$#', $selected_items)){
+		
+		switch($action){
+			case AUTOM8_ACTION_REPORT_DELETE:
+				db_execute(sprintf('DELETE FROM plugin_autom8_report_rule_items WHERE rule_id IN(%s);', $selected_items));
+				db_execute(sprintf('DELETE FROM plugin_autom8_match_rule_items WHERE rule_id IN(%s) AND rule_type = %d;', $selected_items, AUTOM8_RULE_TYPE_REPORT_MATCH));
+				db_execute(sprintf('DELETE FROM plugin_autom8_report_rules WHERE id IN(%s);', $selected_items));
+				break;
+			case AUTOM8_ACTION_REPORT_DUPLICATE:
+				duplicate_autom8_report_rules(explode(',',$selected_items), get_request_var_post('name_format', '<rule_name> (1)'));
+				break;
+			case AUTOM8_ACTION_REPORT_ENABLE:
+				db_execute(sprintf("UPDATE plugin_autom8_report_rules SET enabled = 'on' WHERE id IN(%s);", $selected_items));
+				break;
+			case AUTOM8_ACTION_REPORT_DISABLE:
+				db_execute(sprintf("UPDATE plugin_autom8_report_rules SET enabled = '' WHERE id IN(%s);", $selected_items));
+				break;
+		}
+
+		header('Location: ' . $script_url);
+		exit;
+	}
+	
+	// loop through each of the items selected on the previous page and get more info about them
+	$report_rules = array();
+	foreach(array_keys($_POST) as $var) if(preg_match('/^chk_([0-9]+)$/', $var, $matches)){
+		$report_rules[] = (int) $matches[1];
+	}
+	$report_rule_ids = implode(',', $report_rules);
+	
+	// get list of names
+	$report_rule_list = ''; 
+	$report_rule_names_sql = sprintf('SELECT name FROM plugin_autom8_report_rules WHERE id IN(%s) ORDER BY name;', $report_rule_ids);
+	$report_rule_names = db_fetch_assoc($report_rule_names_sql);
+	foreach($report_rule_names as $rule) $report_rule_list .= '<li>' . $rule['name'] . '</li>';
+
+	include_once($config['include_path'] . '/top_header.php');
+	#print '<pre>'; print_r($_POST); print_r($_GET); print_r($_REQUEST); print '</pre>';
+
+	print '<form name="autom8_report_rules" action="' . $script_url . '" method="post">';
+
+	html_start_box('<strong>' . $report_rule_actions[$action] . '</strong>', '100%', $colors['header_panel'], 3, 'center', '');
+	
+	switch ($action) {
+		case AUTOM8_ACTION_REPORT_DELETE:
+			print '	<tr>
+				<td class="textArea" bgcolor="#' . $colors['form_alternate1']. '">
+					<p>Are you sure you want to delete the following Rules?</p>
+					<p><ul>' . $report_rule_list . '</ul></p>
+				</td>
+			</tr>
+			';
+			break;
+		case AUTOM8_ACTION_REPORT_DUPLICATE:
+			print '	<tr>
+				<td class="textArea" bgcolor="#' . $colors['form_alternate1']. '">
+					<p>When you click save, the following Rules will be duplicated. You can
+					optionally change the title format for the new Rules.</p>
+					<p><ul>' . $report_rule_list . '</ul></p>
+					<p><strong>Title Format:</strong><br>'; form_text_box('name_format', '<rule_name> (1)', '', 255, 30, 'text'); print '</p>
+				</td>
+			</tr>
+			';
+			break;
+		case AUTOM8_ACTION_REPORT_ENABLE:
+			print '	<tr>
+				<td class="textArea" bgcolor="#' . $colors['form_alternate1']. '">
+					<p>When you click save, the following Rules will be enabled.</p>
+					<p><ul>' . $report_rule_list . '</ul></p>
+					<p><strong>Make sure, that those rules have successfully been tested!</strong></p>
+				</td>
+			</tr>
+			';
+			break;
+		case AUTOM8_ACTION_REPORT_DISABLE:
+			print '	<tr>
+				<td class="textArea" bgcolor="#' . $colors['form_alternate1']. '">
+					<p>When you click save, the following Rules will be disabled.</p>
+					<p><ul>' . $report_rule_list . '</ul></p>
+				</td>
+			</tr>
+			';
+			break;
+	}
+
+	if (empty($report_rules)) {
+		print '<tr><td bgcolor="#' . $colors['form_alternate1']. '"><span class="textError">You must select at least one Rule.</span></td></tr>';
+		$save_html = '<input type="button" value="Return" onClick="window.history.back()">';
+	}else {
+		$save_html = '<input type="button" value="Return" onClick="window.history.back()">&nbsp;<input type="submit" value="Apply" title="Apply requested action">';
+	}
+
+	print '	<tr>
+		<td align="right" bgcolor="#eaeaea">
+			<input type="hidden" name="action" value="actions">
+			<input type="hidden" name="selected_items" value="' . $report_rule_ids . '">
+			<input type="hidden" name="drp_action" value="' . $action . '">
+			' . $save_html . '
+		</td>
+	</tr>';
+
+	html_end_box();
+
+	include_once($config['include_path'] . 'bottom_footer.php');
 }
 
 /* --------------------------

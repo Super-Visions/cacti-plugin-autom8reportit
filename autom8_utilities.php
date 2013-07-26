@@ -66,4 +66,54 @@ function display_ds_rule_items($title, $rule_id, $rule_type, $module) {
 
 }
 
+function duplicate_autom8_report_rules($report_ids, $name_format) {
+	global $fields_autom8_report_rules_create, $fields_autom8_report_rules_edit;
+	
+	// find needed fields
+	$fields_autom8_report_rules = $fields_autom8_report_rules_create + $fields_autom8_report_rules_edit;
+	$save_fields = array();
+	foreach($fields_autom8_report_rules as $field => &$array ){
+		if (!preg_match('/^hidden/', $array['method'])) {
+			$save_fields[] = $field;
+		}
+	}
+	
+	// prepare queries
+	$rule_sql = 'SELECT ' . implode(', ', $save_fields) . ' FROM plugin_autom8_report_rules WHERE id = %d LIMIT 1;';
+	$match_items_sql = 'SELECT * FROM plugin_autom8_match_rule_items WHERE rule_id = %d AND rule_type = %d;';
+	$rule_items_sql = 'SELECT * FROM plugin_autom8_report_rule_items WHERE rule_id = %d;';
+		
+	foreach($report_ids as $id){
+		
+		// get current rule details
+		$rule = array_shift(db_fetch_assoc(sprintf($rule_sql, $id, AUTOM8_RULE_TYPE_REPORT_MATCH)));
+		$match_items = db_fetch_assoc(sprintf($match_items_sql, $id, AUTOM8_RULE_TYPE_REPORT_MATCH));
+		$rule_items = db_fetch_assoc(sprintf($rule_items_sql, $id, AUTOM8_RULE_TYPE_REPORT_MATCH));
+		
+		// apply some changes
+		$rule['name'] = str_replace('<rule_name>', $rule['name'], $name_format);
+		$rule['enabled'] = '';
+		$rule['id'] = 0;
+		
+		// save rule
+		$rule_id = sql_save($rule, 'plugin_autom8_report_rules');
+				
+		// save rule match items
+		foreach ($match_items as $match_item) {
+			$match_item['id'] = 0;
+			$match_item['rule_id'] = $rule_id;
+			
+			sql_save($match_item, 'plugin_autom8_match_rule_items');
+		}
+		
+		// save rule items
+		foreach ($rule_items as $rule_item) {
+			$rule_item['id'] = 0;
+			$rule_item['rule_id'] = $rule_id;
+			
+			sql_save($rule_item, 'plugin_autom8_graph_rule_items');
+		}
+	}
+}
+
 ?>
