@@ -86,9 +86,9 @@ function duplicate_autom8_report_rules($report_ids, $name_format) {
 	foreach($report_ids as $id){
 		
 		// get current rule details
-		$rule = array_shift(db_fetch_assoc(sprintf($rule_sql, $id, AUTOM8_RULE_TYPE_REPORT_MATCH)));
+		$rule = db_fetch_row(sprintf($rule_sql, $id));
 		$match_items = db_fetch_assoc(sprintf($match_items_sql, $id, AUTOM8_RULE_TYPE_REPORT_MATCH));
-		$rule_items = db_fetch_assoc(sprintf($rule_items_sql, $id, AUTOM8_RULE_TYPE_REPORT_MATCH));
+		$rule_items = db_fetch_assoc(sprintf($rule_items_sql, $id, AUTOM8_RULE_TYPE_REPORT_ACTION));
 		
 		// apply some changes
 		$rule['name'] = str_replace('<rule_name>', $rule['name'], $name_format);
@@ -111,9 +111,65 @@ function duplicate_autom8_report_rules($report_ids, $name_format) {
 			$rule_item['id'] = 0;
 			$rule_item['rule_id'] = $rule_id;
 			
-			sql_save($rule_item, 'plugin_autom8_graph_rule_items');
+			sql_save($rule_item, 'plugin_autom8_report_rule_items');
 		}
 	}
+}
+
+function display_item_edit_form($autom8_rule, $autom8_item, $title, $module, $fields){
+	global $colors;
+
+	if (!empty($autom8_item['id'])) {
+		$header_label = '[edit rule item for ' . $title . ': ' . $autom8_rule['name'] . ']';
+	}else{
+		$header_label = '[new rule item for ' . $title . ': ' . $autom8_rule['name'] . ']';
+	}
+
+	print '<form method="post" action="' . $module . '" name="form_autom8_global_item_edit">';
+	html_start_box('<strong>Rule Item</strong> ' . $header_label, '100%', $colors['header'], 3, 'center', '');
+	#print '<pre>'; print_r($_POST); print_r($_GET); print_r($_REQUEST); print '</pre>';
+	#print '<pre>'; print_r($_fields_rule_item_edit); print '</pre>';
+
+	draw_edit_form(array(
+		'config' => array('no_form_tag' => true),
+		'fields' => inject_form_variables($fields, $autom8_item, $autom8_rule),
+	));
+
+	html_end_box();
+	
+	//Now we need some javascript to make it dynamic
+?>
+<script type="text/javascript">
+
+toggle_operation();
+toggle_operator();
+
+function toggle_operation() {
+	// right bracket ")" does not come with a field
+	if (document.getElementById('operation').value == '<?php print AUTOM8_OPER_RIGHT_BRACKET;?>') {
+		//alert("Sequence is '" + document.getElementById('sequence').value + "'");
+		document.getElementById('field').value = '';
+		document.getElementById('field').disabled='disabled';
+		document.getElementById('operator').value = 0;
+		document.getElementById('operator').disabled='disabled';
+		document.getElementById('pattern').value = '';
+		document.getElementById('pattern').disabled='disabled';
+	} else {
+		document.getElementById('field').disabled='';
+		document.getElementById('operator').disabled='';
+		document.getElementById('pattern').disabled='';
+	}
+}
+
+function toggle_operator() {
+	// if operator is not "binary", disable the "field" for matching strings
+	if (document.getElementById('operator').value == '<?php print AUTOM8_OPER_RIGHT_BRACKET;?>') {
+		//alert("Sequence is '" + document.getElementById('sequence').value + "'");
+	} else {
+	}
+}
+</script>
+<?php
 }
 
 ?>

@@ -57,6 +57,13 @@ switch ($_REQUEST['action']) {
 
 		header('Location: ' . $script_url . '?action=edit&id=' . (int) get_request_var_request('id', 0));
 		break;
+	case 'item_edit':
+		include_once($config['include_path'] . '/top_header.php');
+
+		autom8_report_rules_item_edit();
+
+		include_once($config['include_path'] . '/bottom_footer.php');
+		break;
  	case 'remove':
 		autom8_report_rules_remove();
 
@@ -105,9 +112,67 @@ function autom8_report_rules_form_save() {
 		}
 
 		header('Location: ' . $script_url . '?action=edit&id=' . $rule_id);
+		
+	}elseif(get_request_var_post('save_component_autom8_report_rule_item', 0)){
+
+		$item_id = (int) get_request_var_post('item_id', 0);
+		$rule_id = (int) get_request_var_post('id', 0);
+		
+		$save['id'] = form_input_validate($item_id, 'item_id', '^[0-9]+$', false, 3);
+		$save['rule_id'] = form_input_validate($rule_id, 'id', '^[0-9]+$', false, 3);
+		$save['sequence'] = form_input_validate(get_request_var_post('sequence', 0), 'sequence', '^[0-9]+$', false, 3);
+		$save['operation'] = form_input_validate(get_request_var_post('operation', 0), 'operation', '^[-0-9]+$', true, 3);
+		$save['field'] = form_input_validate(get_request_var_post('field'), 'field', '', true, 3);
+		$save['operator'] = form_input_validate(get_request_var_post('operator', 0), 'operator', '^[0-9]+$', true, 3);
+		$save['pattern'] = form_input_validate(get_request_var_post('pattern'), 'pattern', '', true, 3);
+
+		if (!is_error_message()) {
+			$item_id = sql_save($save, 'plugin_autom8_report_rule_items');
+
+			if ($item_id) {
+				raise_message(1);
+			}else{
+				raise_message(2);
+			}
+		}
+
+		if (is_error_message()) {
+			header('Location: ' . $script_url . '?action=item_edit&id=' . $rule_id . '&item_id=' . $item_id . '&rule_type=' . AUTOM8_RULE_TYPE_REPORT_ACTION);
+		}else{
+			header('Location: ' . $script_url . '?action=edit&id=' . $rule_id . '&rule_type=' . AUTOM8_RULE_TYPE_REPORT_ACTION);
+		}
+	}elseif(get_request_var_post('save_component_autom8_match_item', 0)){
+		
+		$item_id = (int) get_request_var_post('item_id', 0);
+		$rule_id = (int) get_request_var_post('id', 0);
+
+		$save['id'] = form_input_validate($item_id, 'item_id', '^[0-9]+$', false, 3);
+		$save['rule_id'] = form_input_validate($rule_id, 'id', '^[0-9]+$', false, 3);
+		$save['rule_type'] = AUTOM8_RULE_TYPE_REPORT_MATCH;
+		$save['sequence'] = form_input_validate(get_request_var_post('sequence', 0), 'sequence', '^[0-9]+$', false, 3);
+		$save['operation'] = form_input_validate(get_request_var_post('operation', 0), 'operation', '^[-0-9]+$', true, 3);
+		$save['field'] = form_input_validate(get_request_var_post('field'), 'field', '', true, 3);
+		$save['operator'] = form_input_validate(get_request_var_post('operator', 0), 'operator', '^[0-9]+$', true, 3);
+		$save['pattern'] = form_input_validate(get_request_var_post('pattern'), 'pattern', '', true, 3);
+
+		if (!is_error_message()) {
+			$item_id = sql_save($save, 'plugin_autom8_match_rule_items');
+
+			if ($item_id) {
+				raise_message(1);
+			}else{
+				raise_message(2);
+			}
+		}
+
+		if (is_error_message()) {
+			header('Location: ' . $script_url . '?action=item_edit&id=' . $rule_id . '&item_id=' . $item_id . '&rule_type=' . AUTOM8_RULE_TYPE_REPORT_MATCH);
+		}else{
+			header('Location: ' . $script_url . '?action=edit&id=' . $rule_id . '&rule_type=' . AUTOM8_RULE_TYPE_REPORT_MATCH);
+		}
 	}else{
 		raise_message(2);
-		header('Location: autom8_report_rules.php');
+		header('Location: ' . $script_url);
 	}
 }
 
@@ -271,6 +336,71 @@ function autom8_report_rules_item_remove() {
 	} elseif ($rule_type == AUTOM8_RULE_TYPE_REPORT_ACTION) {
 		db_execute(sprintf('DELETE FROM plugin_autom8_report_rule_items WHERE id= %d LIMIT 1;', $item_id));
 	}
+
+}
+
+function autom8_report_rules_item_edit() {
+	global $config, $script_url;
+	global $fields_autom8_match_rule_item_edit, $fields_autom8_graph_rule_item_edit;
+	
+	include_once($config['base_path'].'/plugins/autom8reportit/autom8_utilities.php');
+
+	$item_id = (int) get_request_var_request('item_id', 0);
+	$rule_type = (int) get_request_var_request('rule_type', 0);
+	$rule_id = (int) get_request_var_request('id', 0);
+	
+	switch ($rule_type) {
+		case AUTOM8_RULE_TYPE_REPORT_MATCH:
+			$title = 'Host Match Rule';
+			$item_table = 'plugin_autom8_match_rule_items';
+			$sql_and = sprintf(' AND rule_type = %d ', $rule_type);
+			$tables = array ('host', 'host_templates');
+			$autom8_rule = db_fetch_row(sprintf('SELECT * FROM plugin_autom8_report_rules WHERE id = %d LIMIT 1;', $rule_id));
+			$_fields_rule_item_edit = $fields_autom8_match_rule_item_edit;
+			$query_fields  = get_query_fields('host_template', array('id', 'hash'));
+			$query_fields += get_query_fields('host', array('id', 'host_template_id'));
+			$_fields_rule_item_edit['field']['array'] = $query_fields;
+			break;
+
+		case AUTOM8_RULE_TYPE_REPORT_ACTION:
+			$title = 'Create Report Data Source Rule';
+			$tables = array(AUTOM8_RULE_TABLE_XML);
+			$item_table = 'plugin_autom8_report_rule_items';
+			$sql_and = '';
+			$autom8_rule = db_fetch_row(sprintf('SELECT * FROM plugin_autom8_report_rules WHERE id = %d LIMIT 1;', $rule_id));
+			$_fields_rule_item_edit = $fields_autom8_graph_rule_item_edit;
+			$xml_array = get_data_query_array($autom8_rule['snmp_query_id']);
+			reset($xml_array['fields']);
+			$fields = array();
+			if(sizeof($xml_array)) {
+				foreach($xml_array['fields'] as $key => $value) {
+					# ... work on all input fields
+					if(isset($value['direction']) && (strtolower($value['direction']) == 'input')) {
+						$fields[$key] = $key . ' - ' . $value['name'];
+					}
+				}
+				$_fields_rule_item_edit['field']['array'] = $fields;
+			}
+			break;
+	}
+	
+	if (empty($item_id)){
+		$autom8_item = array();
+		$autom8_item['sequence'] = get_sequence('', 'sequence', $item_table, 'rule_id=' . $rule_id . $sql_and);
+	}else $autom8_item = db_fetch_row('SELECT * FROM ' . $item_table . ' WHERE id = ' . $item_id . $sql_and);
+	
+	
+	display_item_edit_form($autom8_rule, $autom8_item, $title, $script_url, $_fields_rule_item_edit);
+	
+	form_hidden_box('rule_type', $rule_type, $rule_type);
+	form_hidden_box('id', $rule_id, '');
+	form_hidden_box('item_id', $item_id, '');
+	if($rule_type == AUTOM8_RULE_TYPE_REPORT_MATCH) {
+		form_hidden_box('save_component_autom8_match_item', 1, '');
+	} else {
+		form_hidden_box('save_component_autom8_report_rule_item', 1, '');
+	}
+	form_save_button(htmlspecialchars($script_url . '?action=edit&id=' . $rule_id . '&rule_type='. $rule_type ));
 
 }
 
