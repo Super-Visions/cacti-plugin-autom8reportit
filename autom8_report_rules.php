@@ -117,12 +117,13 @@ function autom8_report_rules_form_save() {
 
 		$item_id = (int) get_request_var_post('item_id', 0);
 		$rule_id = (int) get_request_var_post('id', 0);
+		$field = (get_request_var_post('field', 0) == 0)? '' : get_request_var_post('field');
 		
 		$save['id'] = form_input_validate($item_id, 'item_id', '^[0-9]+$', false, 3);
 		$save['rule_id'] = form_input_validate($rule_id, 'id', '^[0-9]+$', false, 3);
 		$save['sequence'] = form_input_validate(get_request_var_post('sequence', 0), 'sequence', '^[0-9]+$', false, 3);
 		$save['operation'] = form_input_validate(get_request_var_post('operation', 0), 'operation', '^[-0-9]+$', true, 3);
-		$save['field'] = form_input_validate(get_request_var_post('field'), 'field', '', true, 3);
+		$save['field'] = form_input_validate($field, 'field', '', true, 3);
 		$save['operator'] = form_input_validate(get_request_var_post('operator', 0), 'operator', '^[0-9]+$', true, 3);
 		$save['pattern'] = form_input_validate(get_request_var_post('pattern'), 'pattern', '', true, 3);
 
@@ -145,13 +146,14 @@ function autom8_report_rules_form_save() {
 		
 		$item_id = (int) get_request_var_post('item_id', 0);
 		$rule_id = (int) get_request_var_post('id', 0);
+		$field = (get_request_var_post('field', 0) == 0)? '' : get_request_var_post('field');
 
 		$save['id'] = form_input_validate($item_id, 'item_id', '^[0-9]+$', false, 3);
 		$save['rule_id'] = form_input_validate($rule_id, 'id', '^[0-9]+$', false, 3);
 		$save['rule_type'] = AUTOM8_RULE_TYPE_REPORT_MATCH;
 		$save['sequence'] = form_input_validate(get_request_var_post('sequence', 0), 'sequence', '^[0-9]+$', false, 3);
 		$save['operation'] = form_input_validate(get_request_var_post('operation', 0), 'operation', '^[-0-9]+$', true, 3);
-		$save['field'] = form_input_validate(get_request_var_post('field'), 'field', '', true, 3);
+		$save['field'] = form_input_validate($field, 'field', '', true, 3);
 		$save['operator'] = form_input_validate(get_request_var_post('operator', 0), 'operator', '^[0-9]+$', true, 3);
 		$save['pattern'] = form_input_validate(get_request_var_post('pattern'), 'pattern', '', true, 3);
 
