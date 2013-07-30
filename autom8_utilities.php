@@ -17,6 +17,179 @@
 
 include_once($config['base_path'].'/plugins/autom8/autom8_utilities.php');
 
+function display_ds_list($rule) {
+	global $config, $colors, $database_idquote;
+	global $script_url, $autom8_op_array;
+	
+	load_current_session_value('dspage', 'sess_autom8_report_ds_page', 1);
+	
+	$page = (int) get_request_var_request('dspage');
+	$per_page = (int) read_config_option('num_rows_data_source');
+	
+	// extra validation
+	if($page < 1) $page = 1;
+
+	// load data query settings
+	$snmp_query_sql = sprintf('SELECT id, name, xml_path FROM snmp_query WHERE id = %d;', $rule['snmp_query_id']);
+	$snmp_query = db_fetch_row($snmp_query_sql);
+	$xml_array = get_data_query_array($rule['snmp_query_id']);
+	
+	// get all used data query fields
+	$dq_fields_sql = sprintf('SELECT DISTINCT field FROM plugin_autom8_report_rule_items WHERE rule_id = %d AND CHAR_LENGTH(field) > 0 ORDER BY field;', $rule['id']);
+	$dq_fields = db_fetch_assoc($dq_fields_sql);
+	
+	// load header items
+	$header_items = array('ID', 'Data Source Name**', 'On Report?');
+	foreach($dq_fields as $dq_field){
+		$header_items[] = $xml_array['fields'][$dq_field['field']]['name'];
+	}
+	
+	// get rule items
+	$rule_items_sql = sprintf("SELECT 
+	operation, 
+	IF(field='',field,CONCAT('hsc_',field,'.field_value')) AS field, 
+	operator, 
+	pattern 
+FROM plugin_autom8_report_rule_items 
+WHERE rule_id = %d 
+ORDER BY sequence;",  $rule['id']);
+	$rule_items = db_fetch_assoc($rule_items_sql);
+	$rule_items_where = build_rule_item_filter($rule_items);
+	
+	// get match items
+	$match_items_sql = sprintf('SELECT * FROM plugin_autom8_match_rule_items WHERE rule_id = %d AND rule_type = %d ORDER BY sequence;', $rule['id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
+	$match_items = db_fetch_assoc($match_items_sql);
+	$match_items_where = build_rule_item_filter($match_items);
+	
+	// get report settings
+	$report_sql = sprintf('SELECT data_template_id, report.id 
+FROM reportit_reports AS report 
+JOIN reportit_templates AS report_template 
+	ON(report_template.id = report.template_id) 
+JOIN plugin_autom8_report_rules AS report_rule 
+	ON(report_rule.report_id = report.id) 
+WHERE report_rule.id = %d 
+LIMIT 1;', $rule['id']);
+	$report = db_fetch_row($report_sql);
+
+	// build SQL query WHERE part
+	$sql_where = sprintf('dtd.data_template_id = %d ' . PHP_EOL, $report['data_template_id']);
+	$sql_where .= empty($match_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1)' . PHP_EOL : '	AND ( ' . $match_items_where . ' ) '.PHP_EOL;
+	$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1)' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
+	
+	// build SQL query FROM part
+	$sql_from = sprintf('data_template_data AS dtd 
+LEFT JOIN reportit_data_items AS rdi 
+	ON( dtd.local_data_id = rdi.id AND rdi.report_id = %d ) 
+JOIN data_local AS dl 
+	ON( dl.id = dtd.local_data_id ) 
+JOIN ' . $database_idquote . 'host' . $database_idquote .' 
+	ON( host.id = dl.host_id ) 
+JOIN host_template 
+	ON ( host.host_template_id = host_template.id )	
+', $report['id'] );
+	
+	// build SQL query SELECT part
+	$sql_select = '
+	dl.id, 
+	IFNULL(rdi.id = dl.id, 0) AS present, 
+	dtd.name_cache';
+	
+	// add some dynamical fields
+	foreach ($dq_fields as $dq_field){
+		
+		$sql_from .= sprintf('
+LEFT JOIN host_snmp_cache AS hsc_%1$s 
+	ON( 
+		hsc_%1$s.host_id = dl.host_id AND 
+		hsc_%1$s.snmp_query_id = dl.snmp_query_id AND 
+		hsc_%1$s.snmp_index =  dl.snmp_index AND 
+		hsc_%1$s.field_name = \'%1$s\' 
+	) ' . PHP_EOL, $dq_field['field']);
+		
+		$sql_select .= sprintf(', 
+	hsc_%1$s.field_value AS %1$s', $dq_field['field']);
+		
+	}
+	$sql_select .= ' ' . PHP_EOL;
+	
+	// count total matching rows
+	$total_rows_sql = 'SELECT COUNT(*) FROM ' . $sql_from . 'WHERE ' . $sql_where . ';';
+	$total_rows = db_fetch_cell($total_rows_sql);
+	
+	// load ds list
+	$ds_list_sql = 'SELECT ' . $sql_select . 'FROM ' . $sql_from . 'WHERE ' . $sql_where . 'ORDER BY dtd.name_cache ASC LIMIT ' . $per_page . ' OFFSET ' . ($page-1)*$per_page . ';';
+	$ds_list = db_fetch_assoc($ds_list_sql);
+	
+	// display items
+	html_start_box('<strong>Data Query</strong> [' . $snmp_query['name'] . ']', '100%', $colors['header'], 3, 'center', '');
+	
+	/* generate page list */
+	$url_page_select = get_page_list($page, MAX_DISPLAY_PAGES, $per_page, $total_rows, $script_url.'?action=edit&id='.$rule['id'], 'dspage');
+
+	$nav = '<tr bgcolor="#' . $colors["header"] . '">
+		<td colspan="11">
+			<table width="100%" cellspacing="0" cellpadding="0" border="0">
+				<tr>
+					<td align="left" class="textHeaderDark">
+						<strong>&lt;&lt; ';
+	// previous page
+	if ($page > 1) $nav .= '<a class="linkOverDark" href="'.$script_url.'?action=edit&id='.$rule['id'].'&dspage=' . ($page-1) . '">';
+	$nav .= 'Previous'; 
+	if ($page > 1) $nav .= '</a>';
+
+	$nav .= '</strong>
+					</td>
+					<td align="center" class="textHeaderDark">
+						Showing Rows ' . (($per_page*($page-1))+1) .' to '. ((($total_rows < $per_page) || ($total_rows < ($per_page*$page))) ? $total_rows : ($per_page*$page)) .' of '. $total_rows .' ['. $url_page_select .']
+					</td>
+					<td align="right" class="textHeaderDark">
+						<strong>'; 
+	// next page
+	if (($page * $per_page) < $total_rows) $nav .= '<a class="linkOverDark" href="'.$script_url.'?action=edit&id='.$rule['id'].'&dspage=' . ($page+1) . '">';
+	$nav .= 'Next'; 
+	if (($page * $per_page) < $total_rows) $nav .= '</a>';
+
+	$nav .= ' &gt;&gt;</strong>
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>';
+
+	print $nav;
+	
+	// display column names
+	html_header($header_items);
+
+	$i = 0;
+	$present = array('No','Yes');
+	if (sizeof($ds_list) > 0) {
+		foreach ($ds_list as $data_source) {
+			
+			form_alternate_row_color($colors['alternate'], $colors['light'], $i++, 'line' . $data_source['id']);
+			$text_color = $data_source['present'] == 1 ? ' style="color: #999999;"':'';
+			
+			print '<td' . $text_color . '>' . $data_source['id'] . '</td>';
+			if(api_user_realm_auth('data_sources.php'))
+				print '<td' . $text_color . '><a href="'.htmlspecialchars($config['url_path'].'data_sources.php?action=ds_edit&id='.$data_source['id']).'">'.$data_source['name_cache'].'</a></td>';
+			else print '<td' . $text_color . '>'.$data_source['name_cache'].'</td>';
+			print '<td' . $text_color . '>' . $present[$data_source['present']] . '</td>';
+			
+			foreach($dq_fields as $dq_field){
+				print '<td' . $text_color . '>' . $data_source[$dq_field['field']] . '</td>';
+			}
+			print PHP_EOL;
+			
+			form_end_row();
+		}
+	}
+	
+	print $nav;
+	
+	html_end_box();
+}
+
 function display_ds_rule_items($title, $rule_id, $rule_type, $module) {
 	global $colors, $autom8_op_array, $autom8_oper;
 

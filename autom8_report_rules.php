@@ -550,7 +550,7 @@ function autom8_report_rules_edit() {
 		if ($show_hosts) display_matching_hosts($rule, AUTOM8_RULE_TYPE_REPORT_MATCH, $script_url . '?action=edit&id=' . $rule_id);
 		
 		/* display list of new graphs */
-		//if ($show_ds) display_ds_list($rule);
+		if ($show_ds) display_ds_list($rule);
 	}
 
 	?>
