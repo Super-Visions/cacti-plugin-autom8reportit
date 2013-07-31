@@ -436,19 +436,15 @@ function autom8_report_rules_edit() {
 
 	/* ================= input validation ================= */
 	input_validate_input_number(get_request_var_request('id'));
-	input_validate_input_number(get_request_var_request('page'));
 	/* ==================================================== */
 	#print '<pre>'; print_r($_POST); print_r($_GET); print_r($_REQUEST); print '</pre>';
 
 	/* remember these search fields in session vars so we don't have to keep passing them around */
-	load_current_session_value('page', 'autom8_report_rule_current_page', 1);
-	load_current_session_value('report_rule_rows', 'autom8_report_rule_rows', read_config_option('num_rows_data_source'));
 	load_current_session_value('show_hosts', 'autom8_report_rules_show_hosts', false);
 	load_current_session_value('show_ds', 'autom8_report_rules_show_ds', false);
 	
 	
 	$rule_id = (int) get_request_var_request('id', 0);
-	$page = (int) get_request_var_request('page');
 	$show_hosts = (bool) get_request_var_request('show_hosts');
 	$show_ds = (bool) get_request_var_request('show_ds');
 
