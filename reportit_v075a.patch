@@ -1,0 +1,16 @@
+diff -r v075a/runtime.php custom/runtime.php
+322a323
+>     api_plugin_hook_function('reportit_autocleanup', $report_settings);
+331a333
+>     api_plugin_hook_function('reportit_autorrdlist', $report_settings);
+703,704c705,706
+<         					" AND `field_name`='$dq_variable' " .
+<         					" AND `snmp_index`=" . $data_local['snmp_index'] .
+---
+>         					" AND `field_name`='" . $dq_variable . "' " .
+>         					" AND `snmp_index`='" . $data_local['snmp_index'] . "' " .
+1169c1171
+< }
+\ No newline at end of file
+---
+> }

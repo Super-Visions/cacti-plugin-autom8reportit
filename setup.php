@@ -58,9 +58,23 @@ function plugin_autom8reportit_install() {
 	$data['keys'][] = array('name'=> 'snmp_query_id', 'columns' => 'snmp_query_id');
 	$data['type'] = 'MyISAM';
 	$data['comment'] = 'Autom8 Report Rules';
-	api_plugin_db_table_create ('autom8', 'plugin_autom8_report_rules', $data);
+	api_plugin_db_table_create ('autom8reportit', 'plugin_autom8_report_rules', $data);
 	
-
+	# add plugin_autom8_report_rule_items table
+	$data = array();
+	$data['columns'][] = array('name' => 'id', 			'type' => 'mediumint(8)', 'unsigned' => 'unsigned', 'NULL' => false, 'auto_increment' => true);
+	$data['columns'][] = array('name' => 'rule_id',		'type' => 'mediumint(8)', 'unsigned' => 'unsigned', 'NULL' => false, 'default' => 0);
+	$data['columns'][] = array('name' => 'sequence',	'type' => 'smallint(3)', 'unsigned' => 'unsigned', 'NULL' => false, 'default' => 0);
+	$data['columns'][] = array('name' => 'operation',	'type' => 'smallint(3)', 'unsigned' => 'unsigned', 'NULL' => false, 'default' => 0);
+	$data['columns'][] = array('name' => 'field',		'type' => 'varchar(255)', 'NULL' => true,  'default' => '');
+	$data['columns'][] = array('name' => 'operator',	'type' => 'smallint(3)', 'unsigned' => 'unsigned', 'NULL' => true, 'default' => 0);
+	$data['columns'][] = array('name' => 'pattern', 	'type' => 'varchar(255)', 'NULL' => true,  'default' => '');
+	$data['primary'] = 'id';
+	$data['keys'][] = array('name'=> 'rule_id', 'columns' => 'rule_id');
+	$data['type'] = 'MyISAM';
+	$data['comment'] = 'Autom8 Report Rule Items';
+	api_plugin_db_table_create ('autom8reportit', 'plugin_autom8_report_rule_items', $data);
+	
 }
 
 /**
