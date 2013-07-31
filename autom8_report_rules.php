@@ -30,10 +30,7 @@ $report_rule_actions = array(
 	AUTOM8_ACTION_REPORT_DELETE => 'Delete',
 );
 
-/* set default action */
-if (!isset($_REQUEST['action'])) { $_REQUEST['action'] = ''; }
-
-switch ($_REQUEST['action']) {
+switch (get_request_var_request('action')) {
 	case 'save':
 		autom8_report_rules_form_save();
 
@@ -117,7 +114,7 @@ function autom8_report_rules_form_save() {
 
 		$item_id = (int) get_request_var_post('item_id', 0);
 		$rule_id = (int) get_request_var_post('id', 0);
-		$field = (get_request_var_post('field', 0) == 0)? '' : get_request_var_post('field');
+		$field = (get_request_var_post('field') == '0')? '' : get_request_var_post('field');
 		
 		$save['id'] = form_input_validate($item_id, 'item_id', '^[0-9]+$', false, 3);
 		$save['rule_id'] = form_input_validate($rule_id, 'id', '^[0-9]+$', false, 3);
@@ -146,7 +143,7 @@ function autom8_report_rules_form_save() {
 		
 		$item_id = (int) get_request_var_post('item_id', 0);
 		$rule_id = (int) get_request_var_post('id', 0);
-		$field = (get_request_var_post('field', 0) == 0)? '' : get_request_var_post('field');
+		$field = (get_request_var_post('field') == '0')? '' : get_request_var_post('field');
 
 		$save['id'] = form_input_validate($item_id, 'item_id', '^[0-9]+$', false, 3);
 		$save['rule_id'] = form_input_validate($rule_id, 'id', '^[0-9]+$', false, 3);
