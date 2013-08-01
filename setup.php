@@ -42,6 +42,9 @@ function plugin_autom8reportit_install() {
 	api_plugin_register_hook('autom8reportit', 'config_form', 'autom8reportit_config_form', 'setup.php');
 	# graph provide navigation texts
 	api_plugin_register_hook('autom8reportit', 'draw_navigation_text', 'autom8reportit_draw_navigation_text', 'setup.php');
+	# setup actions
+	api_plugin_register_hook('autom8reportit', 'autom8_data_source_action', 'autom8reportit_data_source_action', 'setup.php');
+	api_plugin_register_hook('autom8reportit', 'reportit_autorrdlist', 'autom8reportit_report_action', 'setup.php');
 	
 	# register all php modules required for this plugin
 	api_plugin_register_realm('autom8reportit', 'autom8_report_rules.php', 'Plugin Automate -> Maintain Report Rules', true);
@@ -52,6 +55,7 @@ function plugin_autom8reportit_install() {
 	$data['columns'][] = array('name' => 'name',	 		'type' => 'varchar(255)', 'NULL' => false, 'default' => '');
 	$data['columns'][] = array('name' => 'report_id',		'type' => 'int(11)', 'unsigned' => 'unsigned', 'NULL' => false, 'default' => 0);
 	$data['columns'][] = array('name' => 'snmp_query_id', 	'type' => 'mediumint(8)', 'unsigned' => 'unsigned', 'NULL' => true, 'default' => 0);
+	$data['columns'][] = array('name' => 'action',			'type' => 'smallint(3)', 'unsigned' => 'unsigned', 'NULL' => false, 'default' => 0);
 	$data['columns'][] = array('name' => 'enabled', 		'type' => 'char(2)', 'NULL' => true,  'default' => '');
 	$data['primary'] = 'id';
 	$data['keys'][] = array('name'=> 'report_id', 'columns' => 'report_id');
@@ -183,6 +187,14 @@ WHERE
 	rr.id = |arg1:report_id| 
 GROUP BY sq.id, sq.name 
 ORDER BY sq.name;"
+		),
+		"ds_action" => array(
+			"method" => "drop_array",
+			"friendly_name" => "Rule Action",
+			"description" => "What action needs to be taken with the list of matched data sources.",
+			"value" => "|arg1:action|",
+			"array" => array("Merge", "Overwrite"),
+			"default" => "0",
 		),
 		"enabled" => array(
 			"method" => "checkbox",

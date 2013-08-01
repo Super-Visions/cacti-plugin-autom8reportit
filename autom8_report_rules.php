@@ -96,7 +96,8 @@ function autom8_report_rules_form_save() {
 		$save['id'] = $rule_id;
 		$save['name'] = form_input_validate(get_request_var_post('name'), 'name', '', false, 3);
 		$save['report_id'] = form_input_validate(get_request_var_post('report_id'), 'snmp_query_id', '^[0-9]+$', false, 3);
-		$save['snmp_query_id'] = form_input_validate( (int) get_request_var_post('snmp_query_id', 0), 'snmp_query_id', '^[0-9]+$', false, 3);
+		$save['snmp_query_id'] = form_input_validate(get_request_var_post('snmp_query_id', 0), 'snmp_query_id', '^[0-9]+$', false, 3);
+		$save['action'] = form_input_validate(get_request_var_post('ds_action', 0), 'ds_action', '^[0-9]$', false, 3);
 		$save['enabled'] = get_request_var_post('enabled') ? 'on' : '';
 		if (!is_error_message()) {
 			$rule_id = sql_save($save, 'plugin_autom8_report_rules');
