@@ -23,6 +23,10 @@ define("AUTOM8_ACTION_REPORT_ENABLE", 2);
 define("AUTOM8_ACTION_REPORT_DISABLE", 3);
 define("AUTOM8_ACTION_REPORT_DELETE", 99);
 
+define("AUTOM8_REPORT_ACTION_MERGE", 0);
+define("AUTOM8_REPORT_ACTION_OVERWRITE", 1);
+define("AUTOM8_REPORT_ACTION_DELETE", 2);
+
 # non-gw-cacti compatibility
 global $database_idquote;
 if(empty($database_idquote)) $database_idquote = '`';
@@ -44,7 +48,7 @@ function plugin_autom8reportit_install() {
 	api_plugin_register_hook('autom8reportit', 'draw_navigation_text', 'autom8reportit_draw_navigation_text', 'setup.php');
 	# setup actions
 	api_plugin_register_hook('autom8reportit', 'autom8_data_source_action', 'autom8reportit_data_source_action', 'setup.php');
-	api_plugin_register_hook('autom8reportit', 'reportit_autorrdlist', 'autom8reportit_report_action', 'setup.php');
+	api_plugin_register_hook('autom8reportit', 'reportit_autorrdlist', 'autom8reportit_report_action_add', 'setup.php');
 	
 	# register all php modules required for this plugin
 	api_plugin_register_realm('autom8reportit', 'autom8_report_rules.php', 'Plugin Automate -> Maintain Report Rules', true);
@@ -193,7 +197,10 @@ ORDER BY sq.name;"
 			"friendly_name" => "Rule Action",
 			"description" => "What action needs to be taken with the list of matched data sources.",
 			"value" => "|arg1:action|",
-			"array" => array("Merge", "Overwrite"),
+			"array" => array(
+				AUTOM8_REPORT_ACTION_MERGE => "Merge", 
+				AUTOM8_REPORT_ACTION_OVERWRITE => "Overwrite",
+			),
 			"default" => "0",
 		),
 		"enabled" => array(
@@ -236,6 +243,159 @@ function autom8reportit_config_settings() {
         $settings["misc"] = array_merge($settings["misc"], $temp);
     else
         $settings["misc"] = $temp;
+}
+
+/**
+ * Perform rule actions to selected data sources
+ * 
+ * @param array $selected_items
+ * @return array
+ */
+function autom8reportit_data_source_action($selected_items){
+	global $database_idquote, $autom8_op_array;
+	
+	$id_list = implode(',', $selected_items);
+	
+	// return if we have wrong data
+	if(!preg_match('#^([0-9]+,)*[0-9]+$#', $id_list)) return $selected_items;
+	
+	// find possibly matching report rules
+	$report_rule_settings_sql = sprintf("SELECT DISTINCT 
+	report_rule.id AS rule_id, 
+	report_rule.*, 
+	presets.*, 
+	data_template_id 
+FROM data_template_data 
+JOIN reportit_templates report_template 
+	USING(data_template_id) 
+JOIN reportit_reports report 
+	ON(report.template_id = report_template.id) 
+JOIN reportit_presets presets 
+	ON(presets.id = report.id) 
+JOIN plugin_autom8_report_rules report_rule 
+	ON(report_rule.report_id = report.id) 
+WHERE report_rule.enabled = 'on' 
+	AND local_data_id IN(%s);", $id_list );
+	$report_rule_settings = db_fetch_assoc($report_rule_settings_sql);
+	
+	// execute every rule to find matching DS
+	foreach ($report_rule_settings as &$report_rule) {
+		unset($report_rule['id']);
+		
+		// get all used data query fields
+		$dq_fields_sql = sprintf('SELECT DISTINCT field FROM plugin_autom8_report_rule_items WHERE rule_id = %d AND CHAR_LENGTH(field) > 0 ORDER BY field;', $report_rule['rule_id']);
+		$dq_fields = db_fetch_assoc($dq_fields_sql);
+		
+		// get rule items
+		$rule_items_sql = sprintf("SELECT 
+	operation, 
+	IF(field='',field,CONCAT('hsc_',field,'.field_value')) AS field, 
+	operator, 
+	pattern 
+FROM plugin_autom8_report_rule_items 
+WHERE rule_id = %d 
+ORDER BY sequence;",  $report_rule['rule_id']);
+		$rule_items = db_fetch_assoc($rule_items_sql);
+		$rule_items_where = build_rule_item_filter($rule_items);
+		
+		// get match items
+		$match_items_sql = sprintf('SELECT * FROM plugin_autom8_match_rule_items WHERE rule_id = %d AND rule_type = %d ORDER BY sequence;', $report_rule['rule_id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
+		$match_items = db_fetch_assoc($match_items_sql);
+		$match_items_where = build_rule_item_filter($match_items);
+		
+		// build SQL query WHERE part
+		$sql_where = sprintf('dl.id IN(%s) ' . PHP_EOL, $id_list);
+		$sql_where .= empty($match_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $match_items_where . ' ) '.PHP_EOL;
+		$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
+		if($report_rule['action'] == AUTOM8_REPORT_ACTION_MERGE) $sql_where .= '	AND rdi.id IS NULL '.PHP_EOL;
+		if($report_rule['action'] == AUTOM8_REPORT_ACTION_DELETE) $sql_where .= '	AND rdi.id IS NOT NULL '.PHP_EOL;
+
+		// build SQL query FROM part
+		$sql_from = sprintf('data_template_data AS dtd 
+LEFT JOIN reportit_data_items AS rdi 
+	ON( dtd.local_data_id = rdi.id AND rdi.report_id = %d ) 
+JOIN data_local AS dl 
+	ON( dl.id = dtd.local_data_id ) 
+JOIN ' . $database_idquote . 'host' . $database_idquote .' 
+	ON( host.id = dl.host_id ) 
+JOIN host_template 
+	ON ( host.host_template_id = host_template.id )	
+', $report_rule['report_id'] );
+	
+		// build SQL query SELECT part
+		$sql_select = '
+	dl.id, 
+	IFNULL(rdi.id = dl.id, 0) AS present, 
+	dtd.name_cache '.PHP_EOL;
+	
+		// add some dynamical fields
+		foreach ($dq_fields as $dq_field){
+
+			$sql_from .= sprintf('
+LEFT JOIN host_snmp_cache AS hsc_%1$s 
+	ON( 
+		hsc_%1$s.host_id = dl.host_id AND 
+		hsc_%1$s.snmp_query_id = dl.snmp_query_id AND 
+		hsc_%1$s.snmp_index =  dl.snmp_index AND 
+		hsc_%1$s.field_name = \'%1$s\' 
+	) ' . PHP_EOL, $dq_field['field']);
+		
+		}
+		
+		// find matching DS
+		$data_item_list_sql = 'SELECT ' . $sql_select . 'FROM ' . $sql_from . 'WHERE ' . $sql_where . 'ORDER BY dtd.name_cache ASC;';
+		$data_item_list = db_fetch_assoc($data_item_list_sql);
+		
+		// do action with data items
+		switch ($report_rule['action']){
+			case AUTOM8_REPORT_ACTION_OVERWRITE:
+				// remove currently existing data items
+				$data_items_clean_sql = sprintf('DELETE FROM reportit_data_items WHERE report_id = %d AND id IN(%s);', $report_rule['report_id'], $id_list);
+				db_execute($data_items_clean_sql);
+			
+			case AUTOM8_REPORT_ACTION_MERGE:
+				// prepare adding data items
+				$values = array();
+				foreach($data_item_list as $data_item){
+					$values[] = sprintf("(%d, %d, '%s', '%s', '%s', '%s', '%s', '%s')", 
+							$data_item['id'], $report_rule['report_id'], 
+							$report_rule['description'], $report_rule['start_day'], 
+							$report_rule['end_day'], $report_rule['start_time'], 
+							$report_rule['end_time'], $report_rule['timezone']);
+				}
+				// run query
+				if(!empty($values)){
+					$data_items_save_sql = sprintf('INSERT INTO reportit_data_items VALUES %s;', implode(', ', $values));
+					db_execute($data_items_save_sql);
+				}
+				
+				break;
+				
+			case AUTOM8_REPORT_ACTION_DELETE:
+				// prepare existing data items
+				$data_item_ids = array();
+				foreach($data_item_list as $data_item){
+					$data_item_ids[] = $data_item['id'];
+				}
+				// delete data items
+				$data_items_delete_sql = sprintf('DELETE FROM reportit_data_items WHERE report_id = %d AND id IN(%s);', $report_rule['report_id'], implode(',', $data_item_ids));
+				db_execute($data_items_delete_sql);
+				
+				break;
+		}
+	}
+	
+	return $selected_items;
+}
+
+/**
+ * 
+ * @param array $report_settings
+ * @return array
+ */
+function autom8reportit_report_action_add($report_settings){
+	
+	return $report_settings;
 }
 
 ?>

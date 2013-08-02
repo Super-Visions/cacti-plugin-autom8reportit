@@ -1,0 +1,93 @@
+diff -r v035/autom8_actions.php custom/autom8_actions.php
+83a84,85
+> 			
+> 			$selected_items = api_plugin_hook_function('autom8_device_action', $selected_items);
+212a215,216
+> 			
+> 			$selected_items = api_plugin_hook_function('autom8_graph_action', $selected_items);
+233a238,313
+> 
+> /**
+>  * Setup the new dropdown action for Data Source Management
+>  * @arg $action		actions to be performed from dropdown
+>  */
+> function autom8_data_source_action_array($action) {
+> 	$action['plugin_autom8_data_source'] = 'Apply Autom8 Rules to Data Source(s)';
+> 	return $action;
+> }
+> 
+> 
+> function autom8_data_source_action_prepare($save) {
+> 	# globals used
+> 	global $config, $colors;
+> 	include_once($config['base_path'] . "/plugins/autom8/autom8_utilities.php");
+> 	autom8_log("autom8_ds_action_prepare called", true, "AUTOM8 TRACE", POLLER_VERBOSITY_MEDIUM);
+> 
+> 	/* suppress warnings */
+> 	error_reporting(0);
+> 
+> 	/* install own error handler */
+> 	set_error_handler("autom8_error_handler");
+> 
+> 	# it's our turn
+> 	if ($save["drp_action"] == "plugin_autom8_data_source") { /* autom8 */
+> 		/* find out which (if any) ds have been checked, so we can tell the user */
+> 		if (isset($save["ds_array"])) {
+> 
+> 			/* list affected data sources */
+> 			print "<tr>";
+> 			print "<td class='textArea' bgcolor='#" . $colors["form_alternate1"] . "'>" .
+> 				"<p>Are you sure you want to apply <strong>Autom8 Rules</strong> to the following data sources?</p><ul>" .
+> 			$save["ds_list"] . "</ul></td>";
+> 			print "</tr>";
+> 		}
+> 	}
+> 
+> 	/* restore original error handler */
+> 	restore_error_handler();
+> 	return $save;			# required for next hook in chain
+> }
+> 
+> /**
+>  * autom8_data_source_action_execute - execute the device action
+>  * @arg $action				action to be performed
+>  * return				-
+>  *  */
+> function autom8_data_source_action_execute($action) {
+> 	global $config;
+> 	include_once($config['base_path'] . "/plugins/autom8/autom8_functions.php");
+> 	include_once($config['base_path'] . "/plugins/autom8/autom8_utilities.php");
+> 	autom8_log(__FUNCTION__ . " called", true, "AUTOM8 TRACE", POLLER_VERBOSITY_MEDIUM);
+> 
+> 	/* suppress warnings */
+> 	error_reporting(0);
+> 
+> 	/* install own error handler */
+> 	set_error_handler("autom8_error_handler");
+> 
+> 	# it's our turn
+> 	if ($action == "plugin_autom8_data_source") { /* autom8 */
+> 		autom8_log(__FUNCTION__ . " called, action: " . $action, true, "AUTOM8 TRACE", POLLER_VERBOSITY_MEDIUM);
+> 		/* find out which (if any) hosts have been checked, so we can tell the user */
+> 		if (isset($_POST["selected_items"])) {
+> 			$selected_items = unserialize(stripslashes($_POST["selected_items"]));
+> 			autom8_log(__FUNCTION__ . ", items: " . $_POST["selected_items"], true, "AUTOM8 TRACE", POLLER_VERBOSITY_MEDIUM);
+> 
+> 			api_plugin_hook_function('autom8_data_source_action', $selected_items);
+> 		}
+> 	}
+> 
+> 	/* restore original error handler */
+> 	restore_error_handler();
+> 	autom8_log(__FUNCTION__ . " exits", true, "AUTOM8 TRACE", POLLER_VERBOSITY_MEDIUM);
+> 	return $action;
+> }
+diff -r v035/setup.php custom/setup.php
+100a101,107
+> 	# data source hook: Add a new dropdown Action for Data Source Management
+> 	api_plugin_register_hook('autom8', 'data_source_action_array', 'autom8_data_source_action_array', 'autom8_actions.php');
+> 	# data source hook: Data Source Management Action dropdown selected: prepare the list of data sources for a confirmation request
+> 	api_plugin_register_hook('autom8', 'data_source_action_prepare', 'autom8_data_source_action_prepare', 'autom8_actions.php');
+> 	# data source hook: Data Source Management Action dropdown selected: execute list of data sources
+> 	api_plugin_register_hook('autom8', 'data_source_action_execute', 'autom8_data_source_action_execute', 'autom8_actions.php');
+> 
