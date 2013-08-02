@@ -35,8 +35,7 @@ function display_ds_list($rule) {
 	$xml_array = get_data_query_array($rule['snmp_query_id']);
 	
 	// get all used data query fields
-	$dq_fields_sql = sprintf('SELECT DISTINCT field FROM plugin_autom8_report_rule_items WHERE rule_id = %d AND CHAR_LENGTH(field) > 0 ORDER BY field;', $rule['id']);
-	$dq_fields = db_fetch_assoc($dq_fields_sql);
+	$dq_fields = get_rule_dq_fields($rule['id'], 'plugin_autom8_report_rule_items');
 	
 	// load header items
 	$header_items = array('ID', 'Data Source Name**', 'On Report?');
@@ -45,21 +44,10 @@ function display_ds_list($rule) {
 	}
 	
 	// get rule items
-	$rule_items_sql = sprintf("SELECT 
-	operation, 
-	IF(field='',field,CONCAT('hsc_',field,'.field_value')) AS field, 
-	operator, 
-	pattern 
-FROM plugin_autom8_report_rule_items 
-WHERE rule_id = %d 
-ORDER BY sequence;",  $rule['id']);
-	$rule_items = db_fetch_assoc($rule_items_sql);
-	$rule_items_where = build_rule_item_filter($rule_items);
+	$rule_items_where = build_rule_item_filter(get_rule_items($rule['id'], 'plugin_autom8_report_rule_items'));
 	
 	// get match items
-	$match_items_sql = sprintf('SELECT * FROM plugin_autom8_match_rule_items WHERE rule_id = %d AND rule_type = %d ORDER BY sequence;', $rule['id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
-	$match_items = db_fetch_assoc($match_items_sql);
-	$match_items_where = build_rule_item_filter($match_items);
+	$match_items_where = build_matching_objects_filter($rule['id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
 	
 	// get report settings
 	$report_sql = sprintf('SELECT data_template_id, report.id 
@@ -73,8 +61,7 @@ LIMIT 1;', $rule['id']);
 	$report = db_fetch_row($report_sql);
 
 	// build SQL query WHERE part
-	$sql_where = sprintf('dtd.data_template_id = %d ' . PHP_EOL, $report['data_template_id']);
-	$sql_where .= empty($match_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $match_items_where . ' ) '.PHP_EOL;
+	$sql_where = sprintf('dtd.data_template_id = %d ' . PHP_EOL . '	AND ( %s ) ' . PHP_EOL, $report['data_template_id'], $match_items_where);
 	$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
 	
 	// build SQL query FROM part
@@ -345,4 +332,44 @@ function toggle_operator() {
 <?php
 }
 
+if(!function_exists('get_rule_dq_fields')){
+	
+	/**
+	 * 
+	 * @param integer $rule_id Id of the rule
+	 * @param string $table The rule items table
+	 * @return array
+	 */
+	function get_rule_dq_fields($rule_id, $table){
+
+		$dq_fields_sql = sprintf('SELECT DISTINCT field FROM %s WHERE rule_id = %d AND CHAR_LENGTH(field) > 0 ORDER BY field;', $table, $rule_id);
+		$dq_fields = db_fetch_assoc($dq_fields_sql);
+
+		return $dq_fields;
+	}
+}
+
+if(!function_exists('get_rule_items')){
+	
+	/**
+	 * 
+	 * @param integer $rule_id Id of the rule
+	 * @param string $table The rule items table
+	 * @return array
+	 */
+	function get_rule_items($rule_id, $table){
+
+		$rule_items_sql = sprintf("SELECT 
+	operation, 
+	IF(field='',field,CONCAT('hsc_',field,'.field_value')) AS field, 
+	operator, 
+	pattern 
+FROM %s 
+WHERE rule_id = %d 
+ORDER BY sequence;", $table, $rule_id);
+		$rule_items = db_fetch_assoc($rule_items_sql);
+
+		return $rule_items;
+	}
+}
 ?>

@@ -252,7 +252,9 @@ function autom8reportit_config_settings() {
  * @return array
  */
 function autom8reportit_data_source_action($selected_items){
-	global $database_idquote, $autom8_op_array;
+	global $confg, $database_idquote, $autom8_op_array;
+	
+	include_once($config['base_path'].'/plugins/autom8reportit/autom8_utilities.php');
 	
 	$id_list = implode(',', $selected_items);
 	
@@ -283,29 +285,16 @@ WHERE report_rule.enabled = 'on'
 		unset($report_rule['id']);
 		
 		// get all used data query fields
-		$dq_fields_sql = sprintf('SELECT DISTINCT field FROM plugin_autom8_report_rule_items WHERE rule_id = %d AND CHAR_LENGTH(field) > 0 ORDER BY field;', $report_rule['rule_id']);
-		$dq_fields = db_fetch_assoc($dq_fields_sql);
+		$dq_fields = get_rule_dq_fields($report_rule['rule_id'], 'plugin_autom8_report_rule_items');
 		
 		// get rule items
-		$rule_items_sql = sprintf("SELECT 
-	operation, 
-	IF(field='',field,CONCAT('hsc_',field,'.field_value')) AS field, 
-	operator, 
-	pattern 
-FROM plugin_autom8_report_rule_items 
-WHERE rule_id = %d 
-ORDER BY sequence;",  $report_rule['rule_id']);
-		$rule_items = db_fetch_assoc($rule_items_sql);
-		$rule_items_where = build_rule_item_filter($rule_items);
+		$rule_items_where = build_rule_item_filter(get_rule_items($report_rule['rule_id'], 'plugin_autom8_report_rule_items'));
 		
 		// get match items
-		$match_items_sql = sprintf('SELECT * FROM plugin_autom8_match_rule_items WHERE rule_id = %d AND rule_type = %d ORDER BY sequence;', $report_rule['rule_id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
-		$match_items = db_fetch_assoc($match_items_sql);
-		$match_items_where = build_rule_item_filter($match_items);
+		$match_items_where = build_matching_objects_filter($report_rule['rule_id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
 		
 		// build SQL query WHERE part
-		$sql_where = sprintf('dl.id IN(%s) ' . PHP_EOL, $id_list);
-		$sql_where .= empty($match_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $match_items_where . ' ) '.PHP_EOL;
+		$sql_where = sprintf('dl.id IN(%s) ' . PHP_EOL . '	AND ( %s ) ' . PHP_EOL, $id_list, $match_items_where);
 		$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
 		if($report_rule['action'] == AUTOM8_REPORT_ACTION_MERGE) $sql_where .= '	AND rdi.id IS NULL '.PHP_EOL;
 		if($report_rule['action'] == AUTOM8_REPORT_ACTION_DELETE) $sql_where .= '	AND rdi.id IS NOT NULL '.PHP_EOL;
