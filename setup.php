@@ -48,7 +48,7 @@ function plugin_autom8reportit_install() {
 	api_plugin_register_hook('autom8reportit', 'draw_navigation_text', 'autom8reportit_draw_navigation_text', 'setup.php');
 	# setup actions
 	api_plugin_register_hook('autom8reportit', 'autom8_data_source_action', 'autom8reportit_data_source_action', 'setup.php');
-	api_plugin_register_hook('autom8reportit', 'reportit_autorrdlist', 'autom8reportit_report_action_add', 'setup.php');
+	api_plugin_register_hook('autom8reportit', 'reportit_autorrdlist', 'autom8reportit_autorrdlist', 'setup.php');
 	
 	# register all php modules required for this plugin
 	api_plugin_register_realm('autom8reportit', 'autom8_report_rules.php', 'Plugin Automate -> Maintain Report Rules', true);
@@ -378,11 +378,133 @@ LEFT JOIN host_snmp_cache AS hsc_%1$s
 }
 
 /**
+ * Add/Remove Data Sources before report execution
  * 
  * @param array $report_settings
  * @return array
  */
-function autom8reportit_report_action_add($report_settings){
+function autom8reportit_autorrdlist($report_settings){
+	global $config, $database_idquote, $autom8_op_array;
+	
+	include_once($config['base_path'].'/plugins/autom8reportit/autom8_utilities.php');
+		
+	if(read_config_option('autom8_reports_enabled') != 'on') return $report_settings;
+	
+	$report_rule_settings_sql = sprintf("SELECT 
+	report_rule.id AS rule_id, 
+	report_rule.*, 
+	presets.*, 
+	data_template_id 
+FROM plugin_autom8_report_rules report_rule 
+JOIN reportit_reports report 
+	ON(report.id = report_rule.report_id) 
+JOIN reportit_templates report_template 
+	ON(report_template.id = report.template_id) 
+JOIN reportit_presets presets 
+	ON(presets.id = report.id) 
+WHERE report_rule.enabled = 'on' 
+	AND report.id = 8;",
+		$report_settings['id']
+	);
+	$report_rule_settings = db_fetch_assoc($report_rule_settings_sql);
+	
+	// execute every rule to find matching DS
+	foreach ($report_rule_settings as &$report_rule) {
+		unset($report_rule['id']);
+		
+		// get all used data query fields
+		$dq_fields = get_rule_dq_fields($report_rule['rule_id'], 'plugin_autom8_report_rule_items');
+		
+		// get rule items
+		$rule_items_where = build_rule_item_filter(get_rule_items($report_rule['rule_id'], 'plugin_autom8_report_rule_items'));
+		
+		// get match items
+		$match_items_where = build_matching_objects_filter($report_rule['rule_id'], AUTOM8_RULE_TYPE_REPORT_MATCH);
+		
+		// build SQL query WHERE part
+		$sql_where = sprintf('dtd.data_template_id = %d ' . PHP_EOL . '	AND ( %s ) ' . PHP_EOL, $report_rule['data_template_id'], $match_items_where);
+		$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
+		if($report_rule['action'] == AUTOM8_REPORT_ACTION_MERGE) $sql_where .= '	AND rdi.id IS NULL '.PHP_EOL;
+		if($report_rule['action'] == AUTOM8_REPORT_ACTION_DELETE) $sql_where .= '	AND rdi.id IS NOT NULL '.PHP_EOL;
+
+		// build SQL query FROM part
+		$sql_from = sprintf('data_template_data AS dtd 
+LEFT JOIN reportit_data_items AS rdi 
+	ON( dtd.local_data_id = rdi.id AND rdi.report_id = %d ) 
+JOIN data_local AS dl 
+	ON( dl.id = dtd.local_data_id ) 
+JOIN ' . $database_idquote . 'host' . $database_idquote .' 
+	ON( host.id = dl.host_id ) 
+JOIN host_template 
+	ON ( host.host_template_id = host_template.id )	
+', $report_rule['report_id'] );
+	
+		// build SQL query SELECT part
+		$sql_select = '
+	dl.id, 
+	IFNULL(rdi.id = dl.id, 0) AS present, 
+	dtd.name_cache '.PHP_EOL;
+		
+		// add some dynamical fields
+		foreach ($dq_fields as $dq_field){
+
+			$sql_from .= sprintf('
+LEFT JOIN host_snmp_cache AS hsc_%1$s 
+	ON( 
+		hsc_%1$s.host_id = dl.host_id AND 
+		hsc_%1$s.snmp_query_id = dl.snmp_query_id AND 
+		hsc_%1$s.snmp_index =  dl.snmp_index AND 
+		hsc_%1$s.field_name = \'%1$s\' 
+	) ' . PHP_EOL, $dq_field['field']);
+		
+		}
+		
+		// find matching DS
+		$data_item_list_sql = 'SELECT ' . $sql_select . 'FROM ' . $sql_from . 'WHERE ' . $sql_where . 'ORDER BY dtd.name_cache ASC;';
+		$data_item_list = db_fetch_assoc($data_item_list_sql);
+		
+		// do action with data items
+		switch ($report_rule['action']){
+			case AUTOM8_REPORT_ACTION_OVERWRITE:
+				// remove currently existing data items
+				$data_items_clean_sql = sprintf('DELETE FROM reportit_data_items WHERE report_id = %d;', $report_rule['report_id']);
+				db_execute($data_items_clean_sql);
+			
+			case AUTOM8_REPORT_ACTION_MERGE:
+				// prepare adding data items
+				$values = array();
+				foreach($data_item_list as $data_item){
+					$values[] = sprintf("(%d, %d, '%s', '%s', '%s', '%s', '%s', '%s')", 
+							$data_item['id'], $report_rule['report_id'], 
+							$report_rule['description'], $report_rule['start_day'], 
+							$report_rule['end_day'], $report_rule['start_time'], 
+							$report_rule['end_time'], $report_rule['timezone']);
+				}
+				// run query
+				if(!empty($values)){
+					$data_items_save_sql = sprintf('INSERT INTO reportit_data_items VALUES %s;', implode(', ', $values));
+					db_execute($data_items_save_sql);
+					
+					autom8_log(__FUNCTION__ . ' STATS: Report['.$report_settings['id'].'] Added data items: ' . count($values) . ' - rule: ' . $report_rule['name'], false, "AUTOM8", POLLER_VERBOSITY_LOW);
+				}
+				
+				break;
+				
+			case AUTOM8_REPORT_ACTION_DELETE:
+				// prepare existing data items
+				$data_item_ids = array();
+				foreach($data_item_list as $data_item){
+					$data_item_ids[] = $data_item['id'];
+				}
+				// delete data items
+				$data_items_delete_sql = sprintf('DELETE FROM reportit_data_items WHERE report_id = %d AND id IN(%s);', $report_rule['report_id'], implode(',', $data_item_ids));
+				db_execute($data_items_delete_sql);
+				
+				autom8_log(__FUNCTION__ . ' STATS: Report['.$report_settings['id'].'] Removed data items: ' . count($data_item_list) . ' - rule: ' . $report_rule['name'], false, "AUTOM8", POLLER_VERBOSITY_LOW);
+				
+				break;
+		}
+	}
 	
 	return $report_settings;
 }
