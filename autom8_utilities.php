@@ -74,8 +74,8 @@ LIMIT 1;', $rule['id']);
 
 	// build SQL query WHERE part
 	$sql_where = sprintf('dtd.data_template_id = %d ' . PHP_EOL, $report['data_template_id']);
-	$sql_where .= empty($match_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1)' . PHP_EOL : '	AND ( ' . $match_items_where . ' ) '.PHP_EOL;
-	$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1)' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
+	$sql_where .= empty($match_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $match_items_where . ' ) '.PHP_EOL;
+	$sql_where .= empty($rule_items_where)? '	AND (1 ' . $autom8_op_array['op'][AUTOM8_OP_MATCHES_NOT] . ' 1) ' . PHP_EOL : '	AND ( ' . $rule_items_where . ' ) '.PHP_EOL;
 	
 	// build SQL query FROM part
 	$sql_from = sprintf('data_template_data AS dtd 
@@ -115,11 +115,11 @@ LEFT JOIN host_snmp_cache AS hsc_%1$s
 	
 	// count total matching rows
 	$total_rows_sql = 'SELECT COUNT(*) FROM ' . $sql_from . 'WHERE ' . $sql_where . ';';
-	$total_rows = db_fetch_cell($total_rows_sql);
+	$total_rows = db_fetch_cell($total_rows_sql, '', false);
 	
 	// load ds list
 	$ds_list_sql = 'SELECT ' . $sql_select . 'FROM ' . $sql_from . 'WHERE ' . $sql_where . 'ORDER BY dtd.name_cache ASC LIMIT ' . $per_page . ' OFFSET ' . ($page-1)*$per_page . ';';
-	$ds_list = db_fetch_assoc($ds_list_sql);
+	$ds_list = db_fetch_assoc($ds_list_sql, false);
 	
 	// display items
 	html_start_box('<strong>Data Query</strong> [' . $snmp_query['name'] . ']', '100%', $colors['header'], 3, 'center', '');
