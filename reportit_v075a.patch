@@ -1,16 +1,37 @@
-diff -r v075a/runtime.php custom/runtime.php
-322a323
->     api_plugin_hook_function('reportit_autocleanup', $report_settings);
-331a333
->     api_plugin_hook_function('reportit_autorrdlist', $report_settings);
-703,704c705,706
-<         					" AND `field_name`='$dq_variable' " .
-<         					" AND `snmp_index`=" . $data_local['snmp_index'] .
----
->         					" AND `field_name`='" . $dq_variable . "' " .
->         					" AND `snmp_index`='" . $data_local['snmp_index'] . "' " .
-1169c1171
-< }
+diff -ru v075a/runtime.php custom/runtime.php
+--- v075a/runtime.php	2011-12-23 07:33:02.000000000 +0100
++++ custom/runtime.php	2013-07-12 10:55:54.000000000 +0200
+@@ -320,6 +320,7 @@
+ 
+     //----- auto clean-up RRDlist -----
+     autocleanup($report_id);
++    api_plugin_hook_function('reportit_autocleanup', $report_settings);
+ 
+ 	//----- check if BOOST is active -----
+ 	$boost_enabled = (function_exists("boost_process_poller_output") && db_fetch_cell("SELECT 1 FROM `settings` WHERE name = 'boost_rrd_update_enable' and value = 'on'"))? true : false;
+@@ -329,6 +330,7 @@
+ 
+ 	//----- automatic RRDList Generation -----
+     if($report_settings['autorrdlist']) autorrdlist($report_id);
++    api_plugin_hook_function('reportit_autorrdlist', $report_settings);
+ 
+ 	//----- Fetch all necessary data for building a report -----
+ 	$report_definitions = &get_report_definitions($report_id);
+@@ -700,8 +702,8 @@
+         					"FROM `host_snmp_cache` " .
+         					"WHERE `host_id`=" . $data_local['host_id'] .
+         					" AND `snmp_query_id`=" . $data_local['snmp_query_id'] .
+-        					" AND `field_name`='$dq_variable' " .
+-        					" AND `snmp_index`=" . $data_local['snmp_index'] .
++        					" AND `field_name`='" . $dq_variable . "' " .
++        					" AND `snmp_index`='" . $data_local['snmp_index'] . "' " .
+         					" AND `present` > 0";
+         			// and update the value for the given data query cache variable
+         			$variables[$dq_variable] = db_fetch_cell($sql);
+@@ -1166,4 +1168,4 @@
+         fclose($file_handle);
+     }
+     return true;
+-}
 \ No newline at end of file
----
-> }
++}
