@@ -107,11 +107,11 @@ function plugin_autom8reportit_version() {
 function autom8reportit_version() {
     return array(
     	'name'		=> 'Autom8-Reportit',
-		'version'	=> '0.01',
+		'version'	=> '1.0.0',
 		'longname'	=> 'Automate add/remove DS on reports',
 		'author'	=> 'Thomas Casteleyn',
 		'email'		=> 'thomas.casteleyn@super-visions.com',
-		'homepage'	=> 'https://super-visions.com/redmine/projects/groundwork/wiki/Autom8Reportit'
+		'homepage'	=> 'https://github.com/Super-Visions/cacti-plugin-autom8reportit'
     );
 }
 
