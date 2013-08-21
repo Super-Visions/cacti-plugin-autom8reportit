@@ -234,7 +234,9 @@ function duplicate_autom8_report_rules($report_ids, $name_format) {
 	$save_fields = array();
 	foreach($fields_autom8_report_rules as $field => &$array ){
 		if (!preg_match('/^hidden/', $array['method'])) {
-			$save_fields[] = $field;
+			if(preg_match('/\|arg1:(\w+)\|/', $array['value'], $value))
+				$save_fields[] = $value[1];
+			else $save_fields[] = $field;
 		}
 	}
 	
