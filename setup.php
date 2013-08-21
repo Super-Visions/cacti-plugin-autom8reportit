@@ -107,7 +107,7 @@ function plugin_autom8reportit_version() {
 function autom8reportit_version() {
     return array(
     	'name'		=> 'Autom8-Reportit',
-		'version'	=> '1.0.0',
+		'version'	=> '1.0.1',
 		'longname'	=> 'Automate add/remove DS on reports',
 		'author'	=> 'Thomas Casteleyn',
 		'email'		=> 'thomas.casteleyn@super-visions.com',
@@ -403,7 +403,7 @@ JOIN reportit_templates report_template
 JOIN reportit_presets presets 
 	ON(presets.id = report.id) 
 WHERE report_rule.enabled = 'on' 
-	AND report.id = 8;",
+	AND report.id = %d;",
 		$report_settings['id']
 	);
 	$report_rule_settings = db_fetch_assoc($report_rule_settings_sql);
