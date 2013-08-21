@@ -107,7 +107,7 @@ function plugin_autom8reportit_version() {
 function autom8reportit_version() {
     return array(
     	'name'		=> 'Autom8-Reportit',
-		'version'	=> '1.0.1',
+		'version'	=> '1.0.2',
 		'longname'	=> 'Automate add/remove DS on reports',
 		'author'	=> 'Thomas Casteleyn',
 		'email'		=> 'thomas.casteleyn@super-visions.com',
@@ -200,6 +200,7 @@ ORDER BY sq.name;"
 			"array" => array(
 				AUTOM8_REPORT_ACTION_MERGE => "Merge", 
 				AUTOM8_REPORT_ACTION_OVERWRITE => "Overwrite",
+				AUTOM8_REPORT_ACTION_DELETE => "Delete",
 			),
 			"default" => "0",
 		),
