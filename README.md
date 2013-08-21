@@ -30,8 +30,8 @@ In order to get this plugin running, applying patches to the plugins Autom8 and 
 Run following commands from plugins directory:
 
 ```shell
-patch --dry-run -d autom8/ < autom8reportit/autom8_v035.patch
-patch --dry-run -d reportit/ < autom8reportit/reportit_v075a.patch
+patch --dry-run -N -d autom8/ -i autom8reportit/autom8_v035.patch
+patch --dry-run -d reportit/ -i autom8reportit/reportit_v075a.patch
 ```
 
 If everything looks ok, you can omit the `--dry-run` option and run the commands again to actually do the patches. 
