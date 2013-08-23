@@ -25,6 +25,7 @@ function display_ds_list($rule) {
 	
 	$page = (int) get_request_var_request('dspage');
 	$per_page = (int) read_config_option('num_rows_data_source');
+	$debug = (int) get_request_var_request('debug_sql', 0);
 	
 	// extra validation
 	if($page < 1) $page = 1;
@@ -107,6 +108,8 @@ LEFT JOIN host_snmp_cache AS hsc_%1$s
 	// load ds list
 	$ds_list_sql = 'SELECT ' . $sql_select . 'FROM ' . $sql_from . 'WHERE ' . $sql_where . 'ORDER BY dtd.name_cache ASC LIMIT ' . $per_page . ' OFFSET ' . ($page-1)*$per_page . ';';
 	$ds_list = db_fetch_assoc($ds_list_sql, false);
+	
+	if($debug > 0) echo '<pre>'.print_r ($ds_list_sql, true).'</pre>';
 	
 	// display items
 	html_start_box('<strong>Data Query</strong> [' . $snmp_query['name'] . ']', '100%', $colors['header'], 3, 'center', '');
