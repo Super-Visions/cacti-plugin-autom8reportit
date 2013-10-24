@@ -70,12 +70,12 @@ LIMIT 1;', $rule['id']);
 LEFT JOIN reportit_data_items AS rdi 
 	ON( dtd.local_data_id = rdi.id AND rdi.report_id = %d ) 
 JOIN data_local AS dl 
-	ON( dl.id = dtd.local_data_id ) 
+	ON( dl.id = dtd.local_data_id AND dl.snmp_query_id = %d ) 
 JOIN ' . $database_idquote . 'host' . $database_idquote .' 
 	ON( host.id = dl.host_id ) 
 JOIN host_template 
 	ON ( host.host_template_id = host_template.id )	
-', $report['id'] );
+', $report['id'], $rule['snmp_query_id'] );
 	
 	// build SQL query SELECT part
 	$sql_select = '
