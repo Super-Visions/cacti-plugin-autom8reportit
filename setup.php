@@ -107,7 +107,7 @@ function plugin_autom8reportit_version() {
 function autom8reportit_version() {
     return array(
     	'name'		=> 'Autom8-Reportit',
-		'version'	=> '1.0.2',
+		'version'	=> '1.1.0',
 		'longname'	=> 'Automate add/remove DS on reports',
 		'author'	=> 'Thomas Casteleyn',
 		'email'		=> 'thomas.casteleyn@super-visions.com',
@@ -181,8 +181,8 @@ function autom8reportit_config_form () {
 FROM snmp_query sq 
 JOIN snmp_query_graph sqg 
 	ON (sqg.snmp_query_id = sq.id) 
-JOIN snmp_query_graph_rrd_sv sqgrs 
-	ON (sqgrs.snmp_query_graph_id = sqg.id ) 
+JOIN snmp_query_graph_rrd sqgr 
+	ON (sqgr.snmp_query_graph_id = sqg.id ) 
 JOIN reportit_templates rt 
 	USING(data_template_id) 
 JOIN reportit_reports rr 
@@ -305,12 +305,12 @@ WHERE report_rule.enabled = 'on'
 LEFT JOIN reportit_data_items AS rdi 
 	ON( dtd.local_data_id = rdi.id AND rdi.report_id = %d ) 
 JOIN data_local AS dl 
-	ON( dl.id = dtd.local_data_id ) 
+	ON( dl.id = dtd.local_data_id AND dl.snmp_query_id = %d ) 
 JOIN ' . $database_idquote . 'host' . $database_idquote .' 
 	ON( host.id = dl.host_id ) 
 JOIN host_template 
 	ON ( host.host_template_id = host_template.id )	
-', $report_rule['report_id'] );
+', $report_rule['report_id'], $report_rule['snmp_query_id'] );
 	
 		// build SQL query SELECT part
 		$sql_select = '
@@ -433,12 +433,12 @@ WHERE report_rule.enabled = 'on'
 LEFT JOIN reportit_data_items AS rdi 
 	ON( dtd.local_data_id = rdi.id AND rdi.report_id = %d ) 
 JOIN data_local AS dl 
-	ON( dl.id = dtd.local_data_id ) 
+	ON( dl.id = dtd.local_data_id AND dl.snmp_query_id = %d ) 
 JOIN ' . $database_idquote . 'host' . $database_idquote .' 
 	ON( host.id = dl.host_id ) 
 JOIN host_template 
 	ON ( host.host_template_id = host_template.id )	
-', $report_rule['report_id'] );
+', $report_rule['report_id'], $report_rule['snmp_query_id'] );
 	
 		// build SQL query SELECT part
 		$sql_select = '

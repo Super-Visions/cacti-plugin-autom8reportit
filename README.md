@@ -30,9 +30,9 @@ In order to get this plugin running, applying patches to the plugins Autom8 and 
 Run following commands from plugins directory:
 
 ```shell
-patch --dry-run -d autom8/ < autom8reportit/autom8_v035.patch
-patch --dry-run -d reportit/ < autom8reportit/reportit_v075a.patch
+patch --dry-run -N -d autom8/ -i autom8reportit/autom8_v035.patch
+patch --dry-run -d reportit/ -i autom8reportit/reportit_v075a.patch
 ```
 
 If everything looks ok, you can omit the `--dry-run` option and run the commands again to actually do the patches. 
-**Note:** The patch autom8_v035.patch might warn you about reverting patches if you have done this patch already for the plugin [Autom8-Thold](https://github.com/Super-Visions/cacti-plugin-autom8thold/). In this case, you can ignore this patch as it is alread done, you still need to run the patch for Reportit plugin.
+**Note:** The patch autom8_v035.patch might warn you about reverting patches if you have done this patch already for the plugin [Autom8-Thold](https://github.com/Super-Visions/cacti-plugin-autom8thold/). In this case, you can ignore this patch as it is already done, you still need to run the patch for Reportit plugin.
