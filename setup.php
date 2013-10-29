@@ -107,7 +107,7 @@ function plugin_autom8reportit_version() {
 function autom8reportit_version() {
     return array(
     	'name'		=> 'Autom8-Reportit',
-		'version'	=> '1.0.2',
+		'version'	=> '1.1.0',
 		'longname'	=> 'Automate add/remove DS on reports',
 		'author'	=> 'Thomas Casteleyn',
 		'email'		=> 'thomas.casteleyn@super-visions.com',
