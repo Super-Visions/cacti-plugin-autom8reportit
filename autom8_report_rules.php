@@ -369,6 +369,7 @@ function autom8_report_rules_item_edit() {
 			$sql_and = '';
 			$autom8_rule = db_fetch_row(sprintf('SELECT * FROM plugin_autom8_report_rules WHERE id = %d LIMIT 1;', $rule_id));
 			$_fields_rule_item_edit = $fields_autom8_graph_rule_item_edit;
+			if(empty($autom8_rule['snmp_query_id'])) break;
 			$xml_array = get_data_query_array($autom8_rule['snmp_query_id']);
 			reset($xml_array['fields']);
 			$fields = array();
